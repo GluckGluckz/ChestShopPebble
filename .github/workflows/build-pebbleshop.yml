@@ -30,7 +30,7 @@ jobs:
           cache: maven
 
       - name: Build PebbleShop for Paper 26.1.2
-        run: mvn -B -ntp clean package
+        run: mvn -U -B -ntp clean package
 
       - name: Show build output
         if: always()
