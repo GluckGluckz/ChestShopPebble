@@ -16,22 +16,22 @@ softdepend:
 authors: [Gluckz, ItzAmirreza, ElitoGame]
 description: ${project.description}
 commands:
-  pebbleshop:
+  ecs:
     description: Create, remove, and manage PebbleShop chest shops
     aliases:
       - pshop
       - ps
-      - ecs
+      - pebbleshop
       - cs
       - cshop
       - chestshop
       - ezchestshop
-  pebbleadminshop:
+  ecsadmin:
     description: PebbleShop admin moderation commands
     aliases:
       - pshopadmin
       - psadmin
-      - ecsadmin
+      - pebbleadminshop
   checkprofits:
     description: Check all your shop profits that you made offline!
     aliases:
