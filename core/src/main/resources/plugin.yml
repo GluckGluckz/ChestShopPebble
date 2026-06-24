@@ -13,25 +13,28 @@ softdepend:
   - PlaceholderAPI
   - Towny
 authors: [Gluckz, ItzAmirreza, ElitoGame]
-description: ${project.description}
+description: Pebble Quest player chest shop economy system
 commands:
   ecs:
-    description: Create, remove, and manage PebbleShop chest shops
+    description: Create, remove, and manage PebbleShop market stalls
     aliases:
       - pshop
       - ps
       - pebbleshop
+      - pebblestore
       - cs
       - cshop
       - chestshop
-      - ezchestshop
   ecsadmin:
     description: PebbleShop admin moderation commands
     aliases:
       - pshopadmin
       - psadmin
       - pebbleadminshop
+      - pebblemarketadmin
   checkprofits:
-    description: Check all your shop profits that you made offline!
+    description: Check your PebbleShop profit report
     aliases:
       - cp
+      - profits
+      - shopprofits
