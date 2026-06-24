@@ -1,12 +1,12 @@
 # PebbleShop plugin configuration
 # Before editing this file, do not use TAB characters. Use spaces only.
-# PebbleShop is the Pebble Quest player chest shop plugin.
+# PebbleShop is the Pebble Quest player market-stall plugin.
 language: Locale_EN
 shops:
   hologram:
     # Holograms are shown asynchronously and are designed to be lightweight.
     show-holograms: true
-    # Represents the holographic texts of chest shops. Use %item% to display the item's display name.
+    # Represents the holographic text above PebbleShop containers. Use %item% to display the item's display name.
     # Use [item] for 1 line to display the floating item. Use %buy% for buy price and %sell% for sell price.
     # %currency% is defined under economy.server-currency and %owner% represents the shop creator.
     # %maxbuy% & %maxsell% can define the maximum amount a player can buy/sell from a shop at this time.
@@ -16,11 +16,12 @@ shops:
     # The HTML-like <buy></buy> syntax allows the plugin to remove parts of the message if buy/sell are disabled.
     holo-structure:
       - "<emptyShopInfo/>"
+      - "&3&lPebbleShop"
       - "<custom1/>"
       - "<custom2/>"
       - "<custom3/>"
       - "<custom4/>"
-      - "<buy>&bBuy: &a%buy% %currency%</buy><separator> &8| </separator><sell>&bSell: &c%sell% %currency%</sell>"
+      - "<buy>&bBuy &8» &a%currency%%buy%</buy><separator> &8| </separator><sell>&bSell &8» &c%currency%%sell%</sell>"
       - "&d%item%"
       - "<itemdata1/>"
       - "<itemdata2/>"
@@ -29,11 +30,12 @@ shops:
       - "<itemdataRest/>"
       - "[item]"
     holo-structure-adminshop:
+      - "&3&lPebbleShop &8• &cAdmin"
       - "<custom1/>"
       - "<custom2/>"
       - "<custom3/>"
       - "<custom4/>"
-      - "<buy>&bBuy: &a%buy% %currency%</buy><separator> &8| </separator><sell>&bSell: &c%sell% %currency%</sell>"
+      - "<buy>&bBuy &8» &a%currency%%buy%</buy><separator> &8| </separator><sell>&bSell &8» &c%currency%%sell%</sell>"
       - "&d%item%"
       - "<itemdata1/>"
       - "<itemdata2/>"
@@ -74,7 +76,7 @@ shops:
       disable-selling: false
       rotation: "up"
       share-profit: true
-    # If set to true, "/ecs create 12 0" will automatically disable selling, and "/ecs create 0 12" will disable buying.
+    # If set to true, "/pshop create 12 0" will automatically disable selling, and "/pshop create 0 12" will disable buying.
     zero-price-equals-disabled: true
     # If set to true, this setting will require players to use a buy price that is greater than the sell price.
     buy-greater-than-sell: true
@@ -95,29 +97,28 @@ shops:
     shop:
       buy:
         "*":
-          - /tell %player_name% You bought an item!
-          - /tell %player_name% Thanks for shopping!
+          - /tell %player_name% &3PebbleShop &8» &7Thanks for shopping!
       sell:
         "*":
-          - /tell %player_name% You sold an item!
+          - /tell %player_name% &3PebbleShop &8» &7Thanks for stocking the market!
       open:
-        - /tell %player_name% Opening shop!
+        - /tell %player_name% &3PebbleShop &8» &7Opening market stall...
     adminshop:
       buy:
         "*":
-          - /tell %player_name% You bought an admin item!
+          - /tell %player_name% &3PebbleShop &8» &7Thanks for using the admin market!
       sell:
         "*":
-          - /tell %player_name% You sold an admin item!
+          - /tell %player_name% &3PebbleShop &8» &7Sold to the admin market.
       open:
-        - /tell %player_name% Opening adminshop!
+        - /tell %player_name% &3PebbleShop &8» &7Opening admin market...
 economy:
   # Used to replace %currency% for the language files and holograms.
   server-currency: $
   use-xp: false
 commands:
   # Keep these false unless you specifically want PebbleShop to claim /shop or /adminshop.
-  # /pshop, /pebbleshop, /ecs, /cs, /cshop, /chestshop are registered in plugin.yml.
+  # /pshop, /ps, /pebbleshop, /pebblestore, /ecs, /cs, /cshop, /chestshop are registered in plugin.yml.
   alias:
     ecs-shop: false
     ecsadmin-adminshop: false
@@ -172,31 +173,31 @@ notification:
       template:
         content: null
         embeds: # placeholders: %BUYER%, %SELLER%, %ITEM_NAME%, %PRICE%, %CURRENCY%, %SHOP_LOCATION%, %OWNER%, %COUNT%, %TIME%
-          - title: "PebbleShop Transaction"
-            description: "**%BUYER%** bought **%COUNT%x %ITEM_NAME%** from **%SELLER%** for **%PRICE%%CURRENCY%**."
+          - title: "Pebble Market Sale"
+            description: "**%BUYER%** bought **%COUNT%x %ITEM_NAME%** from **%SELLER%** for **%CURRENCY%%PRICE%**."
             url: "https://pebble.quest"
             color: 5636095
             fields:
-              - name: "Shop Location:"
+              - name: "Shop Location"
                 value: "%SHOP_LOCATION%"
                 inline: true
-              - name: "Shop Owner:"
+              - name: "Shop Owner"
                 value: "%OWNER%"
                 inline: true
-              - name: "Buyer:"
+              - name: "Buyer"
                 value: "%BUYER%"
                 inline: true
-              - name: "Seller:"
+              - name: "Seller"
                 value: "%SELLER%"
                 inline: true
-              - name: "Amount:"
+              - name: "Amount"
                 value: "%COUNT% %ITEM_NAME%"
                 inline: true
-              - name: "Time:"
+              - name: "Time"
                 value: "%TIME%"
                 inline: true
             author:
-              name: "PebbleShop"
+              name: "Pebble Quest Market"
               url: "https://pebble.quest"
               icon_url: "https://pebble.quest/favicon.png"
             thumbnail:
@@ -208,31 +209,31 @@ notification:
       template:
         content: null
         embeds: # placeholders: %OWNER%, %BUYING_PRICE%, %SELLING_PRICE%, %ITEM_NAME%, %MATERIAL%, %TIME%, %SHOP_LOCATION%
-          - title: "PebbleShop Created"
-            description: "**%OWNER%** created a new shop for **%ITEM_NAME%**."
+          - title: "New PebbleShop Stall"
+            description: "**%OWNER%** opened a new market stall for **%ITEM_NAME%**."
             url: "https://pebble.quest"
             color: 5636095
             fields:
-              - name: "Shop Location:"
+              - name: "Shop Location"
                 value: "%SHOP_LOCATION%"
                 inline: true
-              - name: "Buying Price"
+              - name: "Buy Price"
                 value: "%BUYING_PRICE%"
                 inline: true
-              - name: "Selling Price:"
+              - name: "Sell Price"
                 value: "%SELLING_PRICE%"
                 inline: true
-              - name: "Item Name:"
+              - name: "Item"
                 value: "%ITEM_NAME%"
                 inline: true
-              - name: "Material:"
+              - name: "Material"
                 value: "%MATERIAL%"
                 inline: true
-              - name: "Time:"
+              - name: "Time"
                 value: "%TIME%"
                 inline: true
             author:
-              name: "PebbleShop"
+              name: "Pebble Quest Market"
               url: "https://pebble.quest"
               icon_url: "https://pebble.quest/favicon.png"
             thumbnail:
