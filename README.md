@@ -28,6 +28,10 @@ PebbleShop resolves PebbleCore reflectively at runtime, similar to PebbleFish. T
 
 Vault remains a soft fallback in the metadata, but PebbleCore Cash is preferred whenever it is available.
 
+## Runtime target
+
+PebbleShop is configured for Pebble Quest's Paper `26.1.2` target and keeps compatibility gates for the legacy upstream versions `1.16.5`, `1.17.1`, `1.18.2`, `1.19.4`, and `1.20.4`.
+
 ## Build
 
 ```bash
@@ -35,6 +39,8 @@ mvn clean package
 ```
 
 The distribution jar is produced from the `dist` module under `target/`.
+
+GitHub Actions builds the jar automatically on `main` pushes and uploads it as the `PebbleShop` artifact. The release workflow publishes versioned jars to the GitHub Releases tab and then bumps the repo to the next `-SNAPSHOT` version.
 
 ## Notes
 
