@@ -65,10 +65,5 @@
             <artifactId>PebbleShop-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.gluckz.pebbleshop</groupId>
-            <artifactId>PebbleShop-craftbukkit_1_20_R3</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
     </dependencies>
 </project>
