@@ -14,6 +14,7 @@
     <description>PebbleShop — Pebble Quest's lightweight player chest shop plugin.</description>
     <properties>
         <java.version>1.8</java.version>
+        <pebble.paper.target>26.1.2</pebble.paper.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -21,7 +22,6 @@
 
     <modules>
         <module>core</module>
-        <module>craftbukkit_1_20_R3</module>
         <module>dist</module>
     </modules>
 </project>
