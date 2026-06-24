@@ -1,30 +1,39 @@
-name: EzChestShop
+name: PebbleShop
 version: ${project.version}
 main: me.deadlight.ezchestshop.EzChestShop
 api-version: 1.16
 folia-supported: true
+depend:
+  - PebbleCore
 softdepend:
   - Vault
   - WildChests
   - WorldGuard
-  - Slimefun #in case just to load after the Slimefun
-  - Multiverse-Core #preventing null worlds
+  - Slimefun # in case just to load after Slimefun
+  - Multiverse-Core # preventing null worlds
   - CMI
   - PlaceholderAPI
   - Towny
   - AdvancedRegionMarket
-authors: [ItzAmirreza, ElitoGame]
+authors: [Gluckz, ItzAmirreza, ElitoGame]
 description: ${project.description}
 commands:
   ecs:
-    description: create or delete a shop
+    description: Create, remove, and manage PebbleShop chest shops
     aliases:
+      - pshop
+      - ps
+      - pebbleshop
       - cs
       - cshop
       - chestshop
       - ezchestshop
   ecsadmin:
-    description: commands designed for admins to moderate
+    description: PebbleShop admin moderation commands
+    aliases:
+      - pshopadmin
+      - psadmin
+      - pebbleadminshop
   checkprofits:
     description: Check all your shop profits that you made offline!
     aliases:

@@ -1,26 +1,26 @@
-# EzChestShop plugin configuration
-# Before starting to config, please note that any usage of TABs in the config file may break the plugin so avoid using tabs and use space.
-# If you need help/found a bug, please join our Discord: https://discord.gg/rSfsqgCqBZ
+# PebbleShop plugin configuration
+# Before editing this file, do not use TAB characters. Use spaces only.
+# PebbleShop is the Pebble Quest player chest shop plugin.
 language: Locale_EN
 shops:
   hologram:
-    # holograms are all shown in the async way and they won't waste a single tick / nor they are buggy like some other plugins
+    # Holograms are shown asynchronously and are designed to be lightweight.
     show-holograms: true
-    # represents the holographic texts of chestshops. Use %item% to display the item's display name.
-    # Use [item] for 1 Line to display the floating item. Use %buy% for buy price and %sell% for sell price.
-    # %currency% is defined under economy.server-currency and %owner% represents the shops creator.
-    # %maxbuy% & %maxsell% can be used to define the maximum amount a player can buy/sell to a shop at this time.
-    # %stock% can be used to display the amount of items stored in the shop.
-    # %capacity% can be used to display the maximum amount of items the shop can hold.
+    # Represents the holographic texts of chest shops. Use %item% to display the item's display name.
+    # Use [item] for 1 line to display the floating item. Use %buy% for buy price and %sell% for sell price.
+    # %currency% is defined under economy.server-currency and %owner% represents the shop creator.
+    # %maxbuy% & %maxsell% can define the maximum amount a player can buy/sell from a shop at this time.
+    # %stock% can display the amount of items stored in the shop.
+    # %capacity% can display the maximum amount of items the shop can hold.
     # %maxStackSize% displays the max stack size of the shop item.
-    # The HTML like <buy></buy> Syntax allows the plugin to remove parts of the message if buy/sell are disabled.
+    # The HTML-like <buy></buy> syntax allows the plugin to remove parts of the message if buy/sell are disabled.
     holo-structure:
       - "<emptyShopInfo/>"
       - "<custom1/>"
       - "<custom2/>"
       - "<custom3/>"
       - "<custom4/>"
-      - "<buy>&fBuy: &a%buy% %currency%</buy><separator> &f| </separator><sell>&fSell: &c%sell% %currency%</sell>"
+      - "<buy>&bBuy: &a%buy% %currency%</buy><separator> &8| </separator><sell>&bSell: &c%sell% %currency%</sell>"
       - "&d%item%"
       - "<itemdata1/>"
       - "<itemdata2/>"
@@ -33,7 +33,7 @@ shops:
       - "<custom2/>"
       - "<custom3/>"
       - "<custom4/>"
-      - "<buy>&fBuy: &a%buy% %currency%</buy><separator> &f| </separator><sell>&fSell: &c%sell% %currency%</sell>"
+      - "<buy>&bBuy: &a%buy% %currency%</buy><separator> &8| </separator><sell>&bSell: &c%sell% %currency%</sell>"
       - "&d%item%"
       - "<itemdata1/>"
       - "<itemdata2/>"
@@ -41,16 +41,16 @@ shops:
       - "<itemdata4/>"
       - "<itemdataRest/>"
       - "[item]"
-    # Define a custom Line spacing multiplier. 1 is default.
+    # Define a custom line spacing multiplier. 1 is default.
     holo-line-spacing: 1
-    # hologram will get removed after x seconds if plugin doesn't detect any movement toward chest shop (default: 10)
+    # Hologram will get removed after x seconds if the plugin doesn't detect movement toward a chest shop.
     hologram-disappearance-delay: 10
-    # Allows players to rotate their Holograms to be displayed on different sides of the Block.
+    # Allows players to rotate their holograms to be displayed on different sides of the block.
     allow-rotation: true
-    # an alternative hologram display system, which is slower but provides easier visibility of nearby shops.
+    # Alternative hologram display system, which is slower but provides easier visibility of nearby shops.
     distance:
       toggled: true
-      # Defines the range at which shops will render holograms (default: 20.0)
+      # Defines the range at which shops will render holograms.
       range: 20.0
       # Set if items should be rendered first and holograms only when looking at the shop directly.
       show-items-first: true
@@ -61,7 +61,7 @@ shops:
     barrels: true
     shulkers: false
   display:
-    # define how the plugin should format displayed numbers, use: https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/text/DecimalFormat.html
+    # Define how the plugin should format displayed numbers. See DecimalFormat documentation.
     number-format:
       gui: "###,###.##"
       chat: "###,###.##"
@@ -74,11 +74,11 @@ shops:
       disable-selling: false
       rotation: "up"
       share-profit: true
-    # If set to true, "/ecs create 12 0" will automatically disable selling(or buying if "/ecs create 0 12")
+    # If set to true, "/ecs create 12 0" will automatically disable selling, and "/ecs create 0 12" will disable buying.
     zero-price-equals-disabled: true
     # If set to true, this setting will require players to use a buy price that is greater than the sell price.
     buy-greater-than-sell: true
-    # If set to true Shulker shops will be given some Lore when mined (Set inside the language files)
+    # If set to true, shulker shops will be given lore when mined.
     add-shulkershop-lore: true
     # Toggle if custom amount buying or selling should be enabled.
     custom-amount-transactions: true
@@ -95,28 +95,29 @@ shops:
     shop:
       buy:
         "*":
-          - /tell %player_name% You bought an Item!
+          - /tell %player_name% You bought an item!
           - /tell %player_name% Thanks for shopping!
       sell:
         "*":
-          - /tell %player_name% You sold an Item!
+          - /tell %player_name% You sold an item!
       open:
         - /tell %player_name% Opening shop!
     adminshop:
       buy:
         "*":
-          - /tell %player_name% You bought an admin Item!
+          - /tell %player_name% You bought an admin item!
       sell:
         "*":
-          - /tell %player_name% You sold an admin Item!
+          - /tell %player_name% You sold an admin item!
       open:
         - /tell %player_name% Opening adminshop!
 economy:
-  # Used to replace %currency% for the language files and the 2nd hologram line.
+  # Used to replace %currency% for the language files and holograms.
   server-currency: $
   use-xp: false
 commands:
-  # Register easier to remember alias on server startup: /shop and /adminshop
+  # Keep these false unless you specifically want PebbleShop to claim /shop or /adminshop.
+  # /pshop, /pebbleshop, /ecs, /cs, /cshop, /chestshop are registered in plugin.yml.
   alias:
     ecs-shop: false
     ecsadmin-adminshop: false
@@ -129,18 +130,18 @@ permissions:
   # Specify how many lines a player can use for their hologram messages. Use "ecs.shops.hologram.messages.lines.X"
   hologram-message-line-count: false
 tasks:
-  # Normally, This option is for when server(basically other plugins) remove the chest shop, in this case, it could result in some issues
-  # if this is causing so much lag, you can turn this off (requires restart)
+  # Normally, this option is for when other plugins remove chest shops and PebbleShop needs to clean up stale data.
+  # If this causes too much lag, you can turn this off. Requires restart.
   check-for-removed-shops: false
-#databases section
+# Databases section
 database:
-  #available types SQLite & MySQL  (MySQL is recommended for the best  & big servers)
+  # Available types: SQLite & MySQL. MySQL is recommended for larger servers.
   type: SQLite
-  #MySQL database information in case of usage
+  # MySQL database information in case of usage
   mysql:
     ip: 127.0.0.1
     port: 3306
-    tables-prefix: ecs_
+    tables-prefix: pshop_
     database: TheDatabaseName
     username: TheUsername
     password: ThePassword
@@ -151,31 +152,30 @@ integration:
   towny:
     shops-only-in-shop-plots: true
 other:
-  notify-op-of-updates: true
-  # When certain items are overlapping/overflowing in the gui configuration, the plugin will notify ops to take actions.
-  # If you don't temper with the guis, you should never receive a notification and gui updates will happen automatically.
+  notify-op-of-updates: false
+  # When certain items are overlapping/overflowing in the GUI configuration, the plugin will notify ops to take actions.
   notify-op-of-overlapping-gui-items: true
+  notify-op-of-overflowing-gui-items: true
 protection:
   prevent-shop-destruction: true
 notification:
-  #Notify users when their shop is empty on join
+  # Notify users when their shop is empty on join
   notify-empty-shop-on-join: true
   discord:
-    #Enable Discord notifications
+    # Enable Discord notifications
     enabled: false
-    #Discord webhook url
+    # Discord webhook url
     webhook-url: "https://discord.com/api/webhooks/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    #Discord message template
+    # Discord message template
     buy-sell-webhook:
       enabled: true
-        #Discord message template
       template:
         content: null
-        embeds: #placeholders: %BUYER%, %SELLER%, %ITEM_NAME%, %PRICE%, %CURRENCY%, %SHOP_LOCATION%, %OWNER%, %COUNT%, %TIME%
-          - title: "New chest shop transaction is made!"
-            description: "Player %BUYER% has bought %ITEM_NAME% from %SELLER% for %PRICE% %CURRENCY%."
-            url: "https://www.spigotmc.org/resources/ez-chest-shop-ecs-1-14-x-1-19-x-mega-update.90411/"
-            color: 16753454
+        embeds: # placeholders: %BUYER%, %SELLER%, %ITEM_NAME%, %PRICE%, %CURRENCY%, %SHOP_LOCATION%, %OWNER%, %COUNT%, %TIME%
+          - title: "PebbleShop Transaction"
+            description: "**%BUYER%** bought **%COUNT%x %ITEM_NAME%** from **%SELLER%** for **%PRICE%%CURRENCY%**."
+            url: "https://pebble.quest"
+            color: 5636095
             fields:
               - name: "Shop Location:"
                 value: "%SHOP_LOCATION%"
@@ -196,22 +196,22 @@ notification:
                 value: "%TIME%"
                 inline: true
             author:
-              name: "EzChestShop"
-              url: "https://www.spigotmc.org/resources/ez-chest-shop-ecs-1-14-x-1-19-x-mega-update.90411/"
-              icon_url: "https://cdn.discordapp.com/icons/902975048514678854/3f77b7a41dd80f018988d4a5d676273e.webp?size=128"
+              name: "PebbleShop"
+              url: "https://pebble.quest"
+              icon_url: "https://pebble.quest/favicon.png"
             thumbnail:
-              url: "https://user-images.githubusercontent.com/20891968/235449301-7a12b967-a837-4e64-8e0b-c871a53e854e.png"
+              url: "https://pebble.quest/favicon.png"
         attachments: [ ]
 
     new-shop-webhook:
       enabled: true
       template:
         content: null
-        embeds: #placeholders: %OWNER%, %BUYING_PRICE%, %SELLING_PRICE%, %ITEM_NAME%, %MATERIAL%, %TIME%, %SHOP_LOCATION%
-          - title: New shop has been created!
-            description: "Player %OWNER% created a new shop for %ITEM_NAME%"
-            url: "https://www.spigotmc.org/resources/ez-chest-shop-ecs-1-14-x-1-19-x-mega-update.90411/"
-            color: 16753454
+        embeds: # placeholders: %OWNER%, %BUYING_PRICE%, %SELLING_PRICE%, %ITEM_NAME%, %MATERIAL%, %TIME%, %SHOP_LOCATION%
+          - title: "PebbleShop Created"
+            description: "**%OWNER%** created a new shop for **%ITEM_NAME%**."
+            url: "https://pebble.quest"
+            color: 5636095
             fields:
               - name: "Shop Location:"
                 value: "%SHOP_LOCATION%"
@@ -232,10 +232,9 @@ notification:
                 value: "%TIME%"
                 inline: true
             author:
-              name: "EzChestShop"
-              url: "https://www.spigotmc.org/resources/ez-chest-shop-ecs-1-14-x-1-19-x-mega-update.90411/"
-              icon_url: "https://cdn.discordapp.com/icons/902975048514678854/3f77b7a41dd80f018988d4a5d676273e.webp?size=128"
+              name: "PebbleShop"
+              url: "https://pebble.quest"
+              icon_url: "https://pebble.quest/favicon.png"
             thumbnail:
-              url: "https://user-images.githubusercontent.com/20891968/235449309-ead31b66-7a06-4c1a-b79d-1c5cf2c41ed8.png"
+              url: "https://pebble.quest/favicon.png"
         attachments: [ ]
-
