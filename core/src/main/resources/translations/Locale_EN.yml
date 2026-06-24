@@ -2,19 +2,21 @@
 # For hologram structure, check config.yml.
 # NOTE: Do not use TAB characters in YAML files. Use spaces only.
 shop-gui:
-  initialbuyprice: "&bInitial Buy Price: &e%buyprice% %currency%"
-  initialsellprice: "&bInitial Sell Price: &e%sellprice% %currency%"
-  admin-title: "&b%shopowner%'s PebbleShop &8(Admin view)"
-  nonowner-title: "&b%shopowner%'s PebbleShop"
-  owner-title: "&b%shopowner%'s PebbleShop"
-  adminshop-title: "&bPebble Admin Shop"
+  initialbuyprice: "&3PebbleShop &8» &7Buy price: &a%currency%%buyprice%"
+  initialsellprice: "&3PebbleShop &8» &7Sell price: &c%currency%%sellprice%"
+  admin-title: "&3&lPebbleShop &8| &7%shopowner% &c(Admin)"
+  nonowner-title: "&3&lPebbleShop &8| &7%shopowner%"
+  owner-title: "&3&lPebbleShop &8| &7Your Stall"
+  adminshop-title: "&3&lPebbleShop &8| &cAdmin Market"
   buttons:
     sellX-title: "&cSell %amount%x"
     sellX-lore:
-      - "&7Sell for &e%price% %currency%"
+      - "&7Earn &a%currency%%price%"
+      - "&8Adds stock to this market stall."
     buyX-title: "&aBuy %amount%x"
     buyX-lore:
-      - "&7Buy for &e%price% %currency%"
+      - "&7Cost &a%currency%%price%"
+      - "&8Purchase from this market stall."
     adminview: "&c&lAdmin View"
     storage: "&e&lStorage"
     settings: "&b&lSettings"
@@ -23,38 +25,37 @@ shop-gui:
       - "&7This option is disabled by"
       - "&7the shop owner."
 transactions:
-  transactionButtonTitle: "&bTransaction logs"
-  backToSettingsButton: "&eBack to settings"
-  PaperTitleBuy: "&aBuy | %player%"
-  PaperTitleSell: "&cSell | %player%"
+  transactionButtonTitle: "&bTransaction Logs"
+  backToSettingsButton: "&eBack to Settings"
+  PaperTitleBuy: "&aSale | %player%"
+  PaperTitleSell: "&cPurchase | %player%"
   PaperLoreBuy:
-    - "&7Total Price: %price%"
-    - "&7Quantity: %count%"
-    - "&7Transaction Type: &aBought from you"
-    - "&e%time%"
+    - "&7Total: &a%price%"
+    - "&7Quantity: &e%count%"
+    - "&7Type: &aBought from you"
+    - "&8%time%"
   PaperLoreSell:
-    - "&7Total Price: %price%"
-    - "&7Quantity: %count%"
-    - "&7Transaction Type: &cSold to you"
-    - "&e%time%"
+    - "&7Total: &a%price%"
+    - "&7Quantity: &e%count%"
+    - "&7Type: &cSold to you"
+    - "&8%time%"
   lessthanminute: "&eless than a minute ago"
   minutesago: "&e%minutes% minute(s) ago"
   hoursago: "&e%hours% hour(s) ago"
   daysago: "&e%days% days ago"
-  player-inform-buy: "&3PebbleShop &8» &b%player% &7bought &e%amount%x &d%item% &7for &a%price%%currency%"
-  player-inform-sell: "&3PebbleShop &8» &b%player% &7sold &e%amount%x &d%item% &7for &a%price%%currency%"
+  player-inform-buy: "&3PebbleShop &8» &b%player% &7bought &e%amount%x &d%item% &7for &a%currency%%price%"
+  player-inform-sell: "&3PebbleShop &8» &b%player% &7sold &e%amount%x &d%item% &7for &a%currency%%price%"
 settings:
-  GuiTitle: "&b&lPebbleShop Settings"
+  GuiTitle: "&3&lPebbleShop Settings"
   statusOn: "&aOn"
   statusOff: "&cOff"
   buttons:
     toggleTransactions:
-      Title: "&eToggle Transaction Message"
+      Title: "&eTransaction Alerts"
       Lore:
         - "&7Current status: %status%"
-        - "&7If enabled, you receive chat"
-        - "&7messages whenever someone buys"
-        - "&7or sells through this shop."
+        - "&7Receive a chat message when"
+        - "&7players buy or sell here."
     disableBuying:
       Title: "&eDisable Buying"
       Lore:
@@ -68,33 +69,33 @@ settings:
         - "&7If enabled, players cannot sell"
         - "&7items to your PebbleShop."
     shopAdmins:
-      Title: "&eShop Admins"
+      Title: "&eShop Helpers"
       nobodyStatusAdmins: "&aNobody"
       Lore:
-        - "&7Add or remove shop admins."
-        - "&7Admins can access storage and"
-        - "&7some settings, except income"
-        - "&7sharing and admin management."
-        - "&aLeft Click &7to add an admin"
-        - "&cRight Click &7to remove an admin"
-        - "&7Current admins: %admins%"
+        - "&7Add or remove trusted helpers."
+        - "&7Helpers can access storage and"
+        - "&7some settings, but not owner"
+        - "&7controls or helper management."
+        - "&aLeft Click &7to add a helper"
+        - "&cRight Click &7to remove a helper"
+        - "&7Current helpers: %admins%"
     sharedIncome:
       Title: "&eShared Income"
       Lore:
         - "&7Current status: %status%"
-        - "&7If enabled, sale profit is"
-        - "&7shared with shop admins too."
+        - "&7If enabled, sale profits are"
+        - "&7shared with shop helpers."
     hologramRotation:
       Title: "&eHologram Rotation"
       Lore:
         - "&7Rotation:"
         - "%rotations%"
         - "&aLeft&7/&cRight&7-click to cycle"
-        - "&7through all rotations!"
+        - "&7through all rotations."
     changePrices:
-      Title: "&eShop Buy/Sell Price"
+      Title: "&eBuy/Sell Prices"
       Lore:
-        - "&7Edit the buy or sell price."
+        - "&7Edit your market stall prices."
         - "&d"
         - "&cLeft click &7to edit Sell"
         - "&aRight click &7to edit Buy"
@@ -109,60 +110,60 @@ settings:
         - "&7your new"
         - "&csell &7price!"
     hologramMessage:
-      Title: "&eCustomize Hologram"
+      Title: "&eStall Hologram"
       Lore:
-        - "&cLeft Click to add a custom"
-        - "&cHologram message!"
-        - "&aRight Click to manage your"
-        - "&acurrent Hologram messages!"
+        - "&cLeft Click &7to add a custom"
+        - "&chologram message."
+        - "&aRight Click &7to manage your"
+        - "&acurrent hologram messages."
         - "&d"
-        - "&8You can use line %lineNumbers%!"
-        - "<ifhasmax>&8You can have %messagesleft% more messages!</ifhasmax>"
+        - "&8You can use line %lineNumbers%."
+        - "<ifhasmax>&8You can add %messagesleft% more line(s).</ifhasmax>"
       LoreMaxReached:
         - "&cYou can only have"
-        - "&c%maxLines% lines!"
+        - "&c%maxLines% lines."
         - "&7Click here to manage"
-        - "&7your hologram messages!"
+        - "&7your hologram messages."
       LoreEdit:
-        - "&cLeft Click to edit your custom"
-        - "&cHologram message!"
-        - "&aRight Click to manage your"
-        - "&acurrent Hologram messages!"
+        - "&cLeft Click &7to edit your custom"
+        - "&chologram message."
+        - "&aRight Click &7to manage your"
+        - "&acurrent hologram messages."
         - "&d"
-        - "&8You can use line %lineNumbers%!"
-        - "<ifhasmax>&8You can have %messagesleft% more messages!</ifhasmax>"
+        - "&8You can use line %lineNumbers%."
+        - "<ifhasmax>&8You can add %messagesleft% more line(s).</ifhasmax>"
       SignPlaceholderTexts: "###############"
     other:
-      backToShopGuiButton: "&eBack to shop"
-      latestTransactionsTitle: "&aLatest Transactions"
+      backToShopGuiButton: "&eBack to Shop"
+      latestTransactionsTitle: "&aLatest Sales"
   chat:
     toggleTransactions:
-      MessageOn: "&3PebbleShop &8» &7Transaction messages: &aON"
-      MessageOff: "&3PebbleShop &8» &7Transaction messages: &cOFF"
+      MessageOn: "&3PebbleShop &8» &7Transaction alerts: &aON"
+      MessageOff: "&3PebbleShop &8» &7Transaction alerts: &cOFF"
     disableBuying:
-      MessageOn: "&3PebbleShop &8» &7Disable buying: &aON"
-      MessageOff: "&3PebbleShop &8» &7Disable buying: &cOFF"
+      MessageOn: "&3PebbleShop &8» &7Buying disabled: &aON"
+      MessageOff: "&3PebbleShop &8» &7Buying disabled: &cOFF"
     disableSelling:
-      MessageOn: "&3PebbleShop &8» &7Disable selling: &aON"
-      MessageOff: "&3PebbleShop &8» &7Disable selling: &cOFF"
+      MessageOn: "&3PebbleShop &8» &7Selling disabled: &aON"
+      MessageOff: "&3PebbleShop &8» &7Selling disabled: &cOFF"
     shopAdmins:
-      addingAdminWaiting: "&ePlease enter the name of the person you want to add as a shop admin."
-      removingAdminWaiting: "&ePlease enter the name of the person you want to remove from shop admins."
-      selfAdmin: "&cYou can't add or remove yourself from the admin list!"
-      sucAdminAdded: "&e%player% &awas added to the shop admin list."
-      alreadyAdmin: "&cThis player is already a shop admin!"
-      noPlayer: "&cThis player doesn't exist or hasn't played here before."
-      sucAdminRemoved: "&e%player% &awas removed from the shop admin list."
-      notInAdminList: "&cThis player is not in the shop admin list!"
-      clearedAdmins: "&cRemoved all admins from this shop."
+      addingAdminWaiting: "&3PebbleShop &8» &7Type the player name to add as a shop helper."
+      removingAdminWaiting: "&3PebbleShop &8» &7Type the player name to remove from shop helpers."
+      selfAdmin: "&cYou cannot add or remove yourself as a helper."
+      sucAdminAdded: "&e%player% &awas added as a shop helper."
+      alreadyAdmin: "&cThat player is already a shop helper."
+      noPlayer: "&cThat player does not exist or has not joined before."
+      sucAdminRemoved: "&e%player% &awas removed from shop helpers."
+      notInAdminList: "&cThat player is not a shop helper."
+      clearedAdmins: "&cRemoved all helpers from this shop."
     sharedIncome:
       MessageOn: "&3PebbleShop &8» &7Shared income: &aON"
       MessageOff: "&3PebbleShop &8» &7Shared income: &cOFF"
     copy-paste:
       copiedShopSettings: "[&6Copied &7shop settings!](%settings%)"
-      pastedShopSettings: "&ePasted &7shop settings!"
+      pastedShopSettings: "&3PebbleShop &8» &aPasted shop settings."
     hologramRotation:
-      rotateHologramInChat: "&7Hologram Rotation: %rotation%"
+      rotateHologramInChat: "&3PebbleShop &8» &7Hologram rotation: %rotation%"
       rotation:
         Up: "&aUp"
         North: "&aNorth"
@@ -171,10 +172,10 @@ settings:
         West: "&aWest"
         Down: "&aDown"
     protection:
-      cannotDestroyShop: "&cYou cannot destroy this shop!"
+      cannotDestroyShop: "&cYou cannot destroy this PebbleShop."
 customMessageManager:
-  GuiTitle: "&b&lHologram Messages"
-  ConfirmDeleteGuiTitle: "&c&lConfirm Delete Text"
+  GuiTitle: "&3&lPebbleShop Holograms"
+  ConfirmDeleteGuiTitle: "&c&lDelete Hologram Line?"
   buttons:
     previousPage:
       Title: "&ePrevious"
@@ -183,37 +184,37 @@ customMessageManager:
       Title: "&eNext"
       Lore:
     shopEntry:
-      Title: "&7%shopitem% &7shop"
-      UnkownTitle: "&cUnknown shop"
+      Title: "&7%shopitem% &7stall"
+      UnkownTitle: "&cUnknown stall"
       Lore:
         - "&7Located at &eX:%x%, Y:%y%, Z:%z%"
         - ""
         - "&eHologram messages:"
         - "&7%hologram-messages%"
         - ""
-        - "&cLeft Click to delete this"
-        - "&chologram message!"
-        - "&aRight Click to edit this"
-        - "&ahologram message!"
+        - "&cLeft Click &7to delete this"
+        - "&chologram message."
+        - "&aRight Click &7to edit this"
+        - "&ahologram message."
     confirmDelete:
       Title: "&cAre you sure?"
       Lore:
         - "&7You are about to delete"
-        - "&7this hologram message!"
-        - "&7This action cannot be undone!"
-        - "&cClick to confirm!"
+        - "&7this hologram message."
+        - "&7This action cannot be undone."
+        - "&cClick to confirm."
     backToCustomMessageManager:
       Title: "&eBack to Hologram Messages"
       Lore:
     modifyCurrentHologram:
       Title: "&eModify current hologram"
       Lore:
-        - "&cLeft Click to delete the current"
-        - "&chologram message!"
-        - "&aRight Click to edit the current"
-        - "&ahologram message!"
+        - "&cLeft Click &7to delete the current"
+        - "&chologram message."
+        - "&aRight Click &7to edit the current"
+        - "&ahologram message."
 customBuySell:
-  gui-customAmountSign-title: "&eCustom Sell/Buy"
+  gui-customAmountSign-title: "&eCustom Amount"
   gui-customAmountSign-lore:
     - "&7Buy or sell a custom amount."
     - "&d"
@@ -234,94 +235,95 @@ customBuySell:
   errors:
     buyingIsDisabled: "&cBuying is disabled in this shop."
     sellingIsDisabled: "&cSelling is disabled in this shop."
-    wrongInput: "&cWrong input, or the number is too large. Please insert a number!"
+    wrongInput: "&cInvalid amount. Please enter a number."
     enterTheAmount: "&ePlease write your desired amount on the sign."
     unsupportedInteger: "&cThe amount cannot be zero or negative."
 shop-messages:
-  successful-buy: "&aYou bought this item for &e%price% %currency%"
-  fullinv: "&cYou don't have enough inventory space for this amount."
-  cannotafford: "&cYou cannot afford this much."
-  outofstock: "&cThe shop is out of stock!"
-  successful-sell: "&aYou sold your item(s) for &e%price% %currency%"
-  shopcannotafford: "&cThe shop cannot afford anymore."
-  notenoughitemtosell: "&cYou don't have enough of this item to sell!"
+  successful-buy: "&3PebbleShop &8» &aYou bought this item for &e%currency%%price%&a."
+  fullinv: "&cYou do not have enough inventory space for this amount."
+  cannotafford: "&cYou do not have enough cash for this purchase."
+  outofstock: "&cThis shop is out of stock."
+  successful-sell: "&3PebbleShop &8» &aYou sold your item(s) for &e%currency%%price%&a."
+  shopcannotafford: "&cThe shop owner cannot afford anymore."
+  notenoughitemtosell: "&cYou do not have enough of this item to sell."
   chestisFull: "&cThe chest is full."
-  selftransaction: "&cYou cannot buy or sell from yourself!"
+  selftransaction: "&cYou cannot buy or sell from yourself."
   openingShopProblem: "&cThere is a problem opening this PebbleShop. Please contact staff and check the console."
   joinEmptyShopActionBar: "&b&l%emptyCount% &c&lempty shops near you!"
 command-messages:
   negativeprice: "&cPrices must be positive."
-  notenoughargs: "&cYou haven't provided enough arguments! \n &cCorrect usage: /pshop create (Buy price) (Sell price)"
-  consolenotallowed: "&cYou are not allowed to execute this command from console."
+  notenoughargs: "&cYou have not provided enough arguments! \n &cCorrect usage: /pshop create (Buy price) (Sell price)"
+  consolenotallowed: "&cYou cannot run this command from console."
   help:
-    - "&3PebbleShop &8» &7Pebble Quest player shops"
-    - "&7- &b/pshop create (Buy Price) (Sell Price) &8| &7Create a shop by looking at a chest while holding the item to sell."
-    - "&7- &b/pshop remove &8| &7Remove the shop you are looking at."
-    - "&7- &b/pshop settings (setting) &8| &7Copy, paste, or toggle shop settings."
+    - "&3&lPebbleShop &8» &7Pebble Quest player market stalls"
+    - "&7- &b/pshop create (buy) (sell) &8| &7Create a stall while looking at a container and holding an item."
+    - "&7- &b/pshop remove &8| &7Remove the stall you are looking at."
+    - "&7- &b/pshop settings (setting) &8| &7Copy, paste, or toggle stall settings."
     - "&eSettings: &7[copy, paste, admins, toggle-buying, toggle-selling, toggle-message, toggle-shared-income, change-rotation]"
-    - "&7- &b/pshop emptyshops &8| &7Shows nearby empty shops that you own."
-    - "&8Aliases: &7/ps, /pebbleshop, /ecs, /cs, /chestshop"
+    - "&7- &b/pshop emptyshops &8| &7Highlight your nearby empty shops."
+    - "&8Aliases: &7/ps, /pebbleshop, /pebblestore, /ecs, /cs, /chestshop"
   help-admin-view-addition:
     - "&cAdmin Help:"
     - "&7- &c/pshopadmin"
   adminhelp:
-    - "&3PebbleShop Admin &8» &7Commands"
+    - "&3&lPebbleShop Admin &8» &7Commands"
     - "&7- &c/pshopadmin remove &8| &7Remove the shop you are looking at."
     - "&7- &c/pshopadmin reload &8| &7Reload PebbleShop configuration."
-    - "&7- &c/pshopadmin create (buy) (sell) &8| &7Create an admin shop."
+    - "&7- &c/pshopadmin create (buy) (sell) &8| &7Create an admin market stall."
     - "&7- &c/pshopadmin transfer-ownership (player) &8| &7Transfer any shop to another player."
     - "&7- &c/pshopadmin uploadlogs &8| &7Upload PebbleShop diagnostics for debugging."
-  alreadyashop: "&cThis container is already a shop!"
-  shopcreated: "&aYou successfully created a PebbleShop!"
-  holdsomething: "&cPlease hold something in your main hand!"
-  notallowdtocreate: "&cYou are not allowed to create/remove a shop in this location."
+  alreadyashop: "&cThis container is already a PebbleShop."
+  shopcreated: "&3PebbleShop &8» &aMarket stall created."
+  holdsomething: "&cPlease hold the item you want to sell in your main hand."
+  notallowdtocreate: "&cYou cannot create or remove a shop in this location."
   notchest: "&cThe block you are looking at is not a supported container."
-  lookatchest: "&cPlease look at a chest."
-  csremoved: "&eThis PebbleShop has been removed."
-  notowner: "&cYou are not the owner of this shop!"
-  notachestorcs: "&cThe block you are looking at is not a chest, or it is not a shop."
-  maxShopLimitReached: "&cMaximum shop limit reached: %shoplimit%!"
-  slimeFunBlockNotSupported: "&cYou can't use this command with a Slimefun block. Please use a normal container."
-  buypriceGreaterThanSellRequired: "&cBuy price has to be greater than the sell price!"
-  invalidShopItem: "&cThe item you are trying to create a shop with is invalid here."
-  shopTransferConfirm: "&eAre you sure you want to permanently transfer this shop to %player%? [&2&l[✔]](Click to confirm transfer! run_command=/ecs settings transfer-ownership %player% -confirm)"
-  shopTransferred: "&aYou transferred this shop to %player%!"
-  buyPriceUpdated: "&aBuy &7price has been updated!"
-  sellPriceUpdated: "&cSell &7price has been updated!"
+  lookatchest: "&cPlease look at a supported container."
+  csremoved: "&3PebbleShop &8» &eMarket stall removed."
+  notowner: "&cYou are not the owner of this shop."
+  notachestorcs: "&cThe block you are looking at is not a supported container or shop."
+  maxShopLimitReached: "&cMaximum shop limit reached: %shoplimit%."
+  slimeFunBlockNotSupported: "&cThis block cannot be used as a PebbleShop. Please use a normal container."
+  buypriceGreaterThanSellRequired: "&cBuy price must be greater than the sell price."
+  invalidShopItem: "&cThat item cannot be used for a PebbleShop here."
+  shopTransferConfirm: "&eTransfer this shop to %player% permanently? [&2&l[✔]](Click to confirm transfer! run_command=/ecs settings transfer-ownership %player% -confirm)"
+  shopTransferred: "&3PebbleShop &8» &aTransferred this shop to &e%player%&a."
+  buyPriceUpdated: "&aBuy &7price updated."
+  sellPriceUpdated: "&cSell &7price updated."
   emptyShopHightLighted:
-    enabled: "&aToggled ON, &bnearby &eshops that you own and that are empty are now highlighted. \n&eTotal empty shops near you: &b%emptyCount%"
-    disabled: "&cToggled OFF, &bnearby &eshops that you own and that are empty are no longer highlighted."
+    enabled: "&3PebbleShop &8» &aEmpty shop highlighting enabled. &7Nearby empty shops you own: &b%emptyCount%"
+    disabled: "&3PebbleShop &8» &cEmpty shop highlighting disabled."
 checkprofits:
   landing-menu:
-    - '&e========================================'
-    - '&7Total sales income: &6%currency%%income% &7from &6%sales% &7sale(s).'
-    - '&7Total buy cost: &6%currency%%cost% &7from &6%purchases% &7purchase(s).'
-    - '&7Total: &6%currency%%total%'
-    - '&7Balance: &6%currency%%balance%'
-    - '&7Click [&b&lHERE](Click for details! run_command=/checkprofits p 1) &7for a detailed report!'
-    - '&7Click to clear the report [&c&l[X]](Click to clear! run_command=/checkprofits clear)'
+    - '&3&m----------------------------------------'
+    - '&3&lPebbleShop Profit Report'
+    - '&7Sales income: &a%currency%%income% &7from &e%sales% &7sale(s).'
+    - '&7Buy cost: &c%currency%%cost% &7from &e%purchases% &7purchase(s).'
+    - '&7Net total: &6%currency%%total%'
+    - '&7Current balance: &6%currency%%balance%'
+    - '&7Click [&b&lHERE](Click for details! run_command=/checkprofits p 1) &7for details.'
+    - '&7Clear report [&c&l[X]](Click to clear! run_command=/checkprofits clear)'
   details-menu:
     header:
-      - "&e----- &6PebbleShop Profits Report &e-----"
+      - "&3----- &bPebbleShop Profit Details &3-----"
     content:
-      - " &e- &6%item%"
-      - "    &7Sales: [&e%sales%x %currency%%income%](Unit price: %unit_income%) &7Purchases: [&e%purchases%x %currency%%cost%](Unit price: %unit_cost%)"
+      - " &e- &d%item%"
+      - "    &7Sales: [&a%sales%x %currency%%income%](Unit price: %unit_income%) &7Purchases: [&c%purchases%x %currency%%cost%](Unit price: %unit_cost%)"
     footer:
-      - "&6%button_previous%&7Page %page%/%pages%&6%button_next%&7 | To view a page, type \"[&6/cp p <page>](Click to paste in chat suggest_command=/cp p )&7\""
+      - "&6%button_previous%&7Page %page%/%pages%&6%button_next%&7 | Type \"[&6/cp p <page>](Click to paste in chat suggest_command=/cp p )&7\" to view a page."
     hover-extra:
       button-next: "Next"
       button-previous: "Previous"
   confirm-clear:
-    - "&eDo you really want to clear all profit data? [&2&l[✔]](Click to confirm clear! run_command=/checkprofits clear -confirm)"
-  confirm-clear-success: "&cYou've cleared all profit data!"
+    - "&eClear all PebbleShop profit data? [&2&l[✔]](Click to confirm clear! run_command=/checkprofits clear -confirm)"
+  confirm-clear-success: "&cYou cleared all PebbleShop profit data."
   join-notification:
-    - "&eCheck your shop profits [&b&lHERE](Click to show run_command=/checkprofits)"
+    - "&3PebbleShop &8» &7You have shop profits to review: [&b&lOpen Report](Click to show run_command=/checkprofits)"
 shulkershop-dropped-lore:
-  - "&eShulkerbox Shop:"
-  - "&7Owner: &6%owner%"
-  - "&7Item: &6%item%"
-  - "&7Buy: &6%currency%%buy_price%"
-  - "&7Sell: &6%currency%%sell_price%"
+  - "&3PebbleShop Shulker:"
+  - "&7Owner: &e%owner%"
+  - "&7Item: &d%item%"
+  - "&7Buy: &a%currency%%buy_price%"
+  - "&7Sell: &c%currency%%sell_price%"
 hologram:
   shop-empty: "&cThis shop is empty!"
   shulkerbox-item: "&7%item% x&e%amount%"
