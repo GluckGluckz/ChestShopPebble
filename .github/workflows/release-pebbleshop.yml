@@ -34,8 +34,13 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.ref == 'refs/heads/main' &&
-      !startsWith(github.event.head_commit.message, 'Release PebbleShop') &&
-      !startsWith(github.event.head_commit.message, 'Bump PebbleShop')
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          !startsWith(github.event.head_commit.message, 'Release PebbleShop') &&
+          !startsWith(github.event.head_commit.message, 'Bump PebbleShop')
+        )
+      )
 
     steps:
       - name: Checkout source
