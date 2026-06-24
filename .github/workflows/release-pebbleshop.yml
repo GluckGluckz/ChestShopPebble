@@ -124,12 +124,12 @@ jobs:
 
       - name: Set Maven release version
         run: |
-          mvn -B -ntp org.codehaus.mojo:versions-maven-plugin:2.16.2:set \
+          mvn -U -B -ntp org.codehaus.mojo:versions-maven-plugin:2.16.2:set \
             -DnewVersion="${{ steps.versions.outputs.release_version }}" \
             -DgenerateBackupPoms=false
 
       - name: Build release jar for Paper 26.1.2
-        run: mvn -B -ntp clean package
+        run: mvn -U -B -ntp clean package
 
       - name: Commit and tag release version
         run: |
@@ -157,7 +157,7 @@ jobs:
 
       - name: Bump to next snapshot
         run: |
-          mvn -B -ntp org.codehaus.mojo:versions-maven-plugin:2.16.2:set \
+          mvn -U -B -ntp org.codehaus.mojo:versions-maven-plugin:2.16.2:set \
             -DnewVersion="${{ steps.versions.outputs.next_snapshot }}" \
             -DgenerateBackupPoms=false
           find . -name pom.xml -print0 | xargs -0 git add
