@@ -1,6 +1,9 @@
 name: Release PebbleShop
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       bump:
@@ -29,7 +32,10 @@ jobs:
   release:
     name: Build, tag, and publish release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      !startsWith(github.event.head_commit.message, 'Release PebbleShop') &&
+      !startsWith(github.event.head_commit.message, 'Bump PebbleShop')
 
     steps:
       - name: Checkout source
@@ -92,6 +98,7 @@ jobs:
           next_snapshot = ".".join(str(part) for part in next_parts) + "-SNAPSHOT"
           tag = f"v{release_version}"
 
+          subprocess.run(["git", "fetch", "--tags", "--force"], check=True)
           tag_exists = subprocess.run(
               ["git", "rev-parse", "--verify", "--quiet", tag],
               stdout=subprocess.DEVNULL,
@@ -106,7 +113,7 @@ jobs:
               out.write(f"next_snapshot={next_snapshot}\n")
               out.write(f"tag={tag}\n")
         env:
-          BUMP: ${{ inputs.bump }}
+          BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'patch' }}
 
       - name: Set Maven release version
         run: |
@@ -128,9 +135,10 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || 'false' }}
         run: |
           FLAGS=""
-          if [ "${{ inputs.prerelease }}" = "true" ]; then
+          if [ "$PRERELEASE" = "true" ]; then
             FLAGS="--prerelease"
           fi
 
