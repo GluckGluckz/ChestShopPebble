@@ -84,10 +84,8 @@ public final class EzChestShop extends JavaPlugin {
             return;
         }
 
-        if (!(getServer().getVersion().contains("1.19") || getServer().getVersion().contains("1.18")
-                || getServer().getVersion().contains("1.17") || getServer().getVersion().contains("1.16")
-                || getServer().getVersion().contains("1.20"))) {
-            logConsole("&d[&bPebbleShop&d] &4This plugin only supports 1.16.5, 1.17.1, 1.18.2, 1.19.4 and 1.20.4. Self-disabling...");
+        if (!isSupportedServerVersion()) {
+            logConsole("&d[&bPebbleShop&d] &4This plugin supports 1.16.5, 1.17.1, 1.18.2, 1.19.4, 1.20.4 and Pebble Quest Paper 26.1.2. Self-disabling...");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         } else {
@@ -271,6 +269,23 @@ public final class EzChestShop extends JavaPlugin {
             return true;
         }
         return false;
+    }
+
+    private boolean isSupportedServerVersion() {
+        return containsSupportedServerVersion(getServer().getVersion())
+                || containsSupportedServerVersion(getServer().getBukkitVersion());
+    }
+
+    private boolean containsSupportedServerVersion(String version) {
+        if (version == null) {
+            return false;
+        }
+        return version.contains("1.16")
+                || version.contains("1.17")
+                || version.contains("1.18")
+                || version.contains("1.19")
+                || version.contains("1.20")
+                || version.contains("26.1.2");
     }
 
     public static Economy getEconomy() {
