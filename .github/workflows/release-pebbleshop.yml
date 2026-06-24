@@ -95,22 +95,24 @@ jobs:
                   return [major, minor, patch + 1]
               raise SystemExit(f"Unsupported bump segment: {segment}")
 
+          def tag_exists(tag):
+              return subprocess.run(
+                  ["git", "rev-parse", "--verify", "--quiet", tag],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              ).returncode == 0
+
           base_parts, is_snapshot = parse_version(current)
           release_parts = base_parts if is_snapshot else bump_version(base_parts, bump)
-          next_parts = bump_version(release_parts, bump)
 
+          subprocess.run(["git", "fetch", "--tags", "--force"], check=True)
+          while tag_exists("v" + ".".join(str(part) for part in release_parts)):
+              release_parts = bump_version(release_parts, bump)
+
+          next_parts = bump_version(release_parts, bump)
           release_version = ".".join(str(part) for part in release_parts)
           next_snapshot = ".".join(str(part) for part in next_parts) + "-SNAPSHOT"
           tag = f"v{release_version}"
-
-          subprocess.run(["git", "fetch", "--tags", "--force"], check=True)
-          tag_exists = subprocess.run(
-              ["git", "rev-parse", "--verify", "--quiet", tag],
-              stdout=subprocess.DEVNULL,
-              stderr=subprocess.DEVNULL,
-          ).returncode == 0
-          if tag_exists:
-              raise SystemExit(f"Release tag already exists: {tag}")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"current={current}\n")
