@@ -6,7 +6,6 @@ folia-supported: true
 depend:
   - PebbleCore
 softdepend:
-  - Vault
   - WildChests
   - WorldGuard
   - Multiverse-Core # preventing null worlds
