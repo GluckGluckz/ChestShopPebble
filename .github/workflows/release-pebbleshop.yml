@@ -48,57 +48,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download Spigot BuildTools
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/buildtools"
-          cd "$RUNNER_TEMP/buildtools"
-          curl -L -o BuildTools.jar "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar"
-
-      - name: Set up Java 8 for Spigot 1.16.5
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '8'
-
-      - name: Install Spigot 1.16.5 remapped dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/buildtools"
-          java -jar BuildTools.jar --rev 1.16.5 --remapped --disable-java-check
-
-      - name: Set up Java 16 for Spigot 1.17.1
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '16'
-
-      - name: Install Spigot 1.17.1 remapped dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/buildtools"
-          java -jar BuildTools.jar --rev 1.17.1 --remapped --disable-java-check
-
-      - name: Set up Java 17 for modern build
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: maven
-
-      - name: Install Spigot 1.18.2-1.20.4 remapped dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/buildtools"
-          for version in 1.18.2 1.19.4 1.20.4; do
-            echo "::group::BuildTools ${version}"
-            java -jar BuildTools.jar --rev "${version}" --remapped --disable-java-check
-            echo "::endgroup::"
-          done
 
       - name: Configure git author
         run: |
@@ -171,7 +126,7 @@ jobs:
             -DnewVersion="${{ steps.versions.outputs.release_version }}" \
             -DgenerateBackupPoms=false
 
-      - name: Build release jar
+      - name: Build release jar for Paper 26.1.2
         run: mvn -B -ntp clean package
 
       - name: Commit and tag release version
@@ -195,7 +150,7 @@ jobs:
           gh release create "${{ steps.versions.outputs.tag }}" \
             "target/PebbleShop-${{ steps.versions.outputs.release_version }}.jar" \
             --title "PebbleShop ${{ steps.versions.outputs.tag }}" \
-            --notes "PebbleShop ${{ steps.versions.outputs.tag }} release build. Built from main and uploaded automatically by GitHub Actions." \
+            --notes "PebbleShop ${{ steps.versions.outputs.tag }} release build for Pebble Quest Paper 26.1.2. Built from main and uploaded automatically by GitHub Actions." \
             $FLAGS
 
       - name: Bump to next snapshot
