@@ -16,7 +16,6 @@ shops:
     # The HTML-like <buy></buy> syntax allows the plugin to remove parts of the message if buy/sell are disabled.
     holo-structure:
       - "<emptyShopInfo/>"
-      - "&3&lPebbleShop"
       - "<custom1/>"
       - "<custom2/>"
       - "<custom3/>"
@@ -30,7 +29,6 @@ shops:
       - "<itemdataRest/>"
       - "[item]"
     holo-structure-adminshop:
-      - "&3&lPebbleShop &8• &cAdmin"
       - "<custom1/>"
       - "<custom2/>"
       - "<custom3/>"
