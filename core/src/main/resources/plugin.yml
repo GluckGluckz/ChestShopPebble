@@ -9,12 +9,10 @@ softdepend:
   - Vault
   - WildChests
   - WorldGuard
-  - Slimefun # in case just to load after Slimefun
   - Multiverse-Core # preventing null worlds
   - CMI
   - PlaceholderAPI
   - Towny
-  - AdvancedRegionMarket
 authors: [Gluckz, ItzAmirreza, ElitoGame]
 description: ${project.description}
 commands:
