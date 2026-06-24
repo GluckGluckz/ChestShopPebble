@@ -13,6 +13,7 @@ import me.deadlight.ezchestshop.data.gui.GuiData;
 import me.deadlight.ezchestshop.integrations.AdvancedRegionMarket;
 import me.deadlight.ezchestshop.integrations.PebbleEconomyBridge;
 import me.deadlight.ezchestshop.integrations.PebbleVaultEconomy;
+import me.deadlight.ezchestshop.integrations.ShopEconomy;
 import me.deadlight.ezchestshop.listeners.*;
 import me.deadlight.ezchestshop.tasks.LoadedChunksTask;
 import me.deadlight.ezchestshop.utils.ASHologram;
@@ -22,10 +23,8 @@ import me.deadlight.ezchestshop.utils.FloatingItem;
 import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.exceptions.CommandFetchException;
 import me.deadlight.ezchestshop.utils.worldguard.FlagRegistry;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -33,7 +32,7 @@ import java.io.IOException;
 public final class EzChestShop extends JavaPlugin {
 
     private static EzChestShop plugin;
-    private static Economy econ = null;
+    private static ShopEconomy econ = null;
     private static boolean usingPebbleEconomy = false;
 
     public static boolean economyPluginFound = true;
@@ -95,7 +94,7 @@ public final class EzChestShop extends JavaPlugin {
         economyPluginFound = setupEconomy();
         if (!economyPluginFound) {
             Config.useXP = true;
-            logConsole("&d[&bPebbleShop&d] &cCannot find PebbleCore, Vault, or an economy provider. Switching to XP based economy.");
+            logConsole("&d[&bPebbleShop&d] &cCannot find PebbleCore Cash. Switching to XP based economy.");
         }
 
         LanguageManager.loadLanguages();
@@ -247,28 +246,14 @@ public final class EzChestShop extends JavaPlugin {
     }
 
     private boolean setupEconomy() {
-        if (PebbleEconomyBridge.economyAvailable()) {
-            econ = new PebbleVaultEconomy();
-            usingPebbleEconomy = true;
-            logConsole("&d[&bPebbleShop&d] &aEconomy hooked into PebbleCore Cash.");
-            return true;
-        }
-
-        usingPebbleEconomy = false;
-
-        if (getServer().getPluginManager().getPlugin("Vault") == null) {
+        if (!PebbleEconomyBridge.economyAvailable()) {
             return false;
         }
-        RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null) {
-            return false;
-        }
-        econ = rsp.getProvider();
-        if (econ != null) {
-            logConsole("&d[&bPebbleShop&d] &aEconomy hooked into Vault provider: &f" + econ.getName());
-            return true;
-        }
-        return false;
+
+        econ = new PebbleVaultEconomy();
+        usingPebbleEconomy = true;
+        logConsole("&d[&bPebbleShop&d] &aEconomy hooked into PebbleCore Cash.");
+        return true;
     }
 
     private boolean isSupportedServerVersion() {
@@ -288,7 +273,7 @@ public final class EzChestShop extends JavaPlugin {
                 || version.contains("26.1.2");
     }
 
-    public static Economy getEconomy() {
+    public static ShopEconomy getEconomy() {
         return econ;
     }
 
