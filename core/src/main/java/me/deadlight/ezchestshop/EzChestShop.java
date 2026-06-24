@@ -64,6 +64,13 @@ public final class EzChestShop extends JavaPlugin {
     public void onEnable() {
         plugin = this;
         scheduler = UniversalScheduler.getScheduler(this);
+
+        if (!ensureDataFolder()) {
+            getLogger().severe("PebbleShop data folder could not be created: " + getDataFolder().getAbsolutePath());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         logConsole("&d[&bPebbleShop&d] &aEnabling PebbleShop - version " + this.getDescription().getVersion());
         saveDefaultConfig();
 
@@ -138,6 +145,10 @@ public final class EzChestShop extends JavaPlugin {
 
         UpdateChecker checker = new UpdateChecker();
         checker.check();
+    }
+
+    private boolean ensureDataFolder() {
+        return getDataFolder().exists() || getDataFolder().mkdirs();
     }
 
     private void registerListeners() {
