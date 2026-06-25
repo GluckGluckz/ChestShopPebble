@@ -106,6 +106,7 @@ public class BlockBreakListener implements Listener {
                         }
                     }
                 }
+                ShopHologram.hideForAll(loc);
                 ShopContainer.deleteShop(loc);
             }
 
