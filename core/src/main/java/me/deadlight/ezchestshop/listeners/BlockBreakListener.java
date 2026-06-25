@@ -4,6 +4,8 @@ import me.deadlight.ezchestshop.data.Config;
 import me.deadlight.ezchestshop.data.LanguageManager;
 import me.deadlight.ezchestshop.data.ShopContainer;
 import me.deadlight.ezchestshop.EzChestShop;
+import me.deadlight.ezchestshop.utils.ASHologram;
+import me.deadlight.ezchestshop.utils.FloatingItem;
 import me.deadlight.ezchestshop.utils.holograms.ShopHologram;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.Utils;
@@ -28,6 +30,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -106,10 +109,40 @@ public class BlockBreakListener implements Listener {
                         }
                     }
                 }
+                cleanupShopHolograms(loc);
                 ShopContainer.deleteShop(loc);
             }
 
         }
+    }
+
+    /**
+     * Packet holograms are client-side fake entities. If the per-player hologram map misses a stale
+     * packet, deleting the shop record is not enough; explicitly destroy nearby shop packets too.
+     */
+    private void cleanupShopHolograms(Location shopLocation) {
+        if (shopLocation == null || shopLocation.getWorld() == null) return;
+        ShopHologram.hideForAll(shopLocation);
+        List<Object> stalePackets = new ArrayList<>();
+        for (Object object : new ArrayList<>(Utils.onlinePackets)) {
+            Location packetLocation = null;
+            if (object instanceof ASHologram) {
+                packetLocation = ((ASHologram) object).getLocation();
+            } else if (object instanceof FloatingItem) {
+                packetLocation = ((FloatingItem) object).getLocation();
+            }
+            if (packetLocation == null || packetLocation.getWorld() == null) continue;
+            if (!packetLocation.getWorld().equals(shopLocation.getWorld())) continue;
+            if (packetLocation.distanceSquared(shopLocation) > 16.0D) continue;
+
+            if (object instanceof ASHologram) {
+                ((ASHologram) object).destroy();
+            } else if (object instanceof FloatingItem) {
+                ((FloatingItem) object).destroy();
+            }
+            stalePackets.add(object);
+        }
+        Utils.onlinePackets.removeAll(stalePackets);
     }
 
     private ItemMeta addLore(ItemMeta meta, PersistentDataContainer container) {
