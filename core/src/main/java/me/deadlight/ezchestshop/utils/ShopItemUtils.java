@@ -101,7 +101,7 @@ public final class ShopItemUtils {
         ItemStack shopItem = sourceItem.clone();
         shopItem.setAmount(1);
         String encodedItem = Utils.encodeItem(shopItem);
-        if (encodedItem == null) return false;
+        if (encodedItem == null || encodedItem.trim().isEmpty()) return false;
 
         TileState state = (TileState) containerBlock.getState();
         PersistentDataContainer data = state.getPersistentDataContainer();
@@ -124,6 +124,7 @@ public final class ShopItemUtils {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return false;
         if (meta.getPersistentDataContainer().has(placeholderItemKey(), PersistentDataType.INTEGER)) return true;
+        if (!meta.hasDisplayName()) return false;
         String name = ChatColor.stripColor(meta.getDisplayName());
         return name != null && name.equalsIgnoreCase("Select Shop Item");
     }
