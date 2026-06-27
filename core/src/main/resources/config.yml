@@ -4,16 +4,10 @@
 language: Locale_EN
 shops:
   hologram:
-    # Holograms are shown asynchronously and are designed to be lightweight.
-    show-holograms: true
-    # Represents the holographic text above PebbleShop containers. Use %item% to display the item's display name.
-    # Use [item] for 1 line to display the floating item. Use %buy% for buy price and %sell% for sell price.
-    # %currency% is defined under economy.server-currency and %owner% represents the shop creator.
-    # %maxbuy% & %maxsell% can define the maximum amount a player can buy/sell from a shop at this time.
-    # %stock% can display the amount of items stored in the shop.
-    # %capacity% can display the maximum amount of items the shop can hold.
-    # %maxStackSize% displays the max stack size of the shop item.
-    # The HTML-like <buy></buy> syntax allows the plugin to remove parts of the message if buy/sell are disabled.
+    # Pebble Quest now uses physical sign shops. The old floating hologram system is disabled.
+    show-holograms: false
+    # Represents the legacy holographic text above PebbleShop containers. Kept only for compatibility with older configs.
+    # Use %item% to display the item's display name. Use [item] for 1 line to display the floating item.
     holo-structure:
       - "<emptyShopInfo/>"
       - "<custom1/>"
@@ -45,11 +39,11 @@ shops:
     holo-line-spacing: 1
     # Hologram will get removed after x seconds if the plugin doesn't detect movement toward a chest shop.
     hologram-disappearance-delay: 10
-    # Allows players to rotate their holograms to be displayed on different sides of the block.
+    # Allows players to rotate their legacy holograms/sign placement direction.
     allow-rotation: true
-    # Alternative hologram display system, which is slower but provides easier visibility of nearby shops.
+    # Legacy hologram distance renderer. Disabled for sign shop mode.
     distance:
-      toggled: true
+      toggled: false
       # Defines the range at which shops will render holograms.
       range: 20.0
       # Set if items should be rendered first and holograms only when looking at the shop directly.
@@ -83,13 +77,13 @@ shops:
     # Toggle if custom amount buying or selling should be enabled.
     custom-amount-transactions: true
     hologram-messages:
-      enabled: true
+      enabled: false
       # When true, custom hologram messages will be displayed even if hologram.distance.show-items-first is enabled.
       show-always: false
       # Sets how many lines can be used for custom hologram messages. If permissions.hologram-message-line-count is true, this setting is overridden.
       line-count-default: 1
       # If true, this will always show players if a shop is empty.
-      show-empty-shop-always: true
+      show-empty-shop-always: false
   commands:
     enabled: false
     shop:
@@ -116,7 +110,7 @@ economy:
   use-xp: false
 commands:
   # Keep these false unless you specifically want PebbleShop to claim /shop or /adminshop.
-  # /pshop, /ps, /pebbleshop, /pebblestore, /ecs, /cs, /cshop, /chestshop are registered in plugin.yml.
+  # /pshop, /ps, /pebbleshop, /peblestore, /ecs, /cs, /cshop, /chestshop are registered in plugin.yml.
   alias:
     ecs-shop: false
     ecsadmin-adminshop: false
@@ -124,9 +118,8 @@ commands:
 permissions:
   # If set to true, players require the permission "ecs.shops.limit.X" where X is the maximum amount of shops a player can create.
   create-shops: false
-  # Limit the amount of hologram messages a player can create. Use "ecs.shops.hologram.messages.limit.X"
+  # Legacy hologram-message permissions. Ignored in sign shop mode.
   hologram-message-limit: false
-  # Specify how many lines a player can use for their hologram messages. Use "ecs.shops.hologram.messages.lines.X"
   hologram-message-line-count: false
 tasks:
   # Normally, this option is for when other plugins remove chest shops and PebbleShop needs to clean up stale data.
