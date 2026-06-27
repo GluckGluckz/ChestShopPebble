@@ -162,6 +162,7 @@ public final class EzChestShop extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new UpdateChecker(), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
         getServer().getPluginManager().registerEvents(new ChestShopBreakPrevention(), this);
+        getServer().getPluginManager().registerEvents(new HologramLifecycleListener(), this);
 
         if (Config.holodistancing) {
             getServer().getPluginManager().registerEvents(new PlayerCloseToChestListener(), this);
@@ -258,30 +259,30 @@ public final class EzChestShop extends JavaPlugin {
 
     private boolean setupEconomy() {
         if (!PebbleEconomyBridge.economyAvailable()) {
-            return false;
+            EzChestShop.logConsole("&d[&bPebbleShop&d] &ePebbleCore economy is not ready; using Vault fallback if available.");
+            if (!PebbleVaultEconomy.setupEconomy()) {
+                return false;
+            }
+            econ = new PebbleVaultEconomy();
+            usingPebbleEconomy = false;
+            return true;
         }
-
-        econ = new PebbleVaultEconomy();
+        econ = new PebbleEconomyBridge(this);
         usingPebbleEconomy = true;
-        logConsole("&d[&bPebbleShop&d] &aEconomy hooked into PebbleCore Cash.");
+        EzChestShop.logConsole("&d[&bPebbleShop&d] &aHooked into PebbleCore Cash economy.");
         return true;
     }
 
     private boolean isSupportedServerVersion() {
-        return containsSupportedServerVersion(getServer().getVersion())
-                || containsSupportedServerVersion(getServer().getBukkitVersion());
-    }
-
-    private boolean containsSupportedServerVersion(String version) {
-        if (version == null) {
-            return false;
-        }
-        return version.contains("1.16")
-                || version.contains("1.17")
-                || version.contains("1.18")
-                || version.contains("1.19")
-                || version.contains("1.20")
-                || version.contains("26.1.2");
+        String version = Bukkit.getServer().getClass().getPackage().getName();
+        if (version.contains("1_20_R3")) return true;
+        if (version.contains("v26_1_2")) return true;
+        return version.contains("1_16")
+                || version.contains("1_17")
+                || version.contains("1_18")
+                || version.contains("1_19")
+                || version.contains("1_20")
+                || version.toLowerCase(java.util.Locale.ROOT).contains("paper");
     }
 
     public static ShopEconomy getEconomy() {
