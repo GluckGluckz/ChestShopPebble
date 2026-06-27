@@ -28,6 +28,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.util.Locale;
 
 public final class EzChestShop extends JavaPlugin {
 
@@ -91,7 +92,11 @@ public final class EzChestShop extends JavaPlugin {
         }
 
         if (!isSupportedServerVersion()) {
-            logConsole("&d[&bPebbleShop&d] &4This plugin supports 1.16.5, 1.17.1, 1.18.2, 1.19.4, 1.20.4 and Pebble Quest Paper 26.1.2. Self-disabling...");
+            logConsole("&d[&bPebbleShop&d] &4Unsupported server build detected. Craft package: "
+                    + Bukkit.getServer().getClass().getPackage().getName()
+                    + ", Bukkit version: " + Bukkit.getBukkitVersion()
+                    + ", Server version: " + Bukkit.getVersion()
+                    + ". Self-disabling...");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         } else {
@@ -268,15 +273,29 @@ public final class EzChestShop extends JavaPlugin {
     }
 
     private boolean isSupportedServerVersion() {
-        String version = Bukkit.getServer().getClass().getPackage().getName();
-        if (version.contains("1_20_R3")) return true;
-        if (version.contains("v26_1_2")) return true;
-        return version.contains("1_16")
-                || version.contains("1_17")
-                || version.contains("1_18")
-                || version.contains("1_19")
-                || version.contains("1_20")
-                || version.toLowerCase(java.util.Locale.ROOT).contains("paper");
+        String craftPackage = safeLower(Bukkit.getServer().getClass().getPackage().getName());
+        String bukkitVersion = safeLower(Bukkit.getBukkitVersion());
+        String serverVersion = safeLower(Bukkit.getVersion());
+        String apiVersion = safeLower(getDescription().getAPIVersion());
+        String combined = craftPackage + " " + bukkitVersion + " " + serverVersion + " " + apiVersion;
+
+        return combined.contains("26.1.2")
+                || combined.contains("26_1_2")
+                || combined.contains("1.16")
+                || combined.contains("1_16")
+                || combined.contains("1.17")
+                || combined.contains("1_17")
+                || combined.contains("1.18")
+                || combined.contains("1_18")
+                || combined.contains("1.19")
+                || combined.contains("1_19")
+                || combined.contains("1.20")
+                || combined.contains("1_20")
+                || combined.contains("paper");
+    }
+
+    private String safeLower(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
 
     public static ShopEconomy getEconomy() {
