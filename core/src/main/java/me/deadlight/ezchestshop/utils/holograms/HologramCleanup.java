@@ -59,7 +59,7 @@ public final class HologramCleanup {
     }
 
     private static void destroyAllOnlinePackets() {
-        List<Object> copy = new ArrayList<>(Utils.onlinePackets);
+        List<Object> copy = new ArrayList<Object>(Utils.onlinePackets);
         for (Object object : copy) destroyPacket(object);
         Utils.onlinePackets.clear();
     }
@@ -80,9 +80,11 @@ public final class HologramCleanup {
 
     private static void destroyPacket(Object object) {
         try {
-            if (object instanceof ASHologram hologram) {
+            if (object instanceof ASHologram) {
+                ASHologram hologram = (ASHologram) object;
                 hologram.destroy();
-            } else if (object instanceof FloatingItem floatingItem) {
+            } else if (object instanceof FloatingItem) {
+                FloatingItem floatingItem = (FloatingItem) object;
                 floatingItem.destroy();
             }
         } catch (Throwable ignored) {
@@ -91,28 +93,27 @@ public final class HologramCleanup {
     }
 
     private static Location packetLocation(Object object) {
-        if (object instanceof ASHologram hologram) return hologram.getLocation();
-        if (object instanceof FloatingItem floatingItem) return floatingItem.getLocation();
+        if (object instanceof ASHologram) return ((ASHologram) object).getLocation();
+        if (object instanceof FloatingItem) return ((FloatingItem) object).getLocation();
         return null;
     }
 
-    @SuppressWarnings("unchecked")
     private static void clearShopHologramCaches() throws ReflectiveOperationException {
         Object playerMap = staticField("playerLocationShopHoloMap").get(null);
-        if (playerMap instanceof Map<?, ?> map) map.clear();
+        if (playerMap instanceof Map) ((Map<?, ?>) playerMap).clear();
 
         Object blockMap = staticField("locationBlockHoloMap").get(null);
-        if (blockMap instanceof Map<?, ?> map) map.clear();
+        if (blockMap instanceof Map) ((Map<?, ?>) blockMap).clear();
 
         Object inspections = staticField("hologramInspections").get(null);
-        if (inspections instanceof Map<?, ?> map) map.clear();
+        if (inspections instanceof Map) ((Map<?, ?>) inspections).clear();
     }
 
     @SuppressWarnings("unchecked")
     private static void removeLocationFromShopHologramCaches(Location location) throws ReflectiveOperationException {
         Object playerMapRaw = staticField("playerLocationShopHoloMap").get(null);
-        if (playerMapRaw instanceof Map<?, ?> rawMap) {
-            Map<UUID, Map<Location, ShopHologram>> playerMap = (Map<UUID, Map<Location, ShopHologram>>) rawMap;
+        if (playerMapRaw instanceof Map) {
+            Map<UUID, Map<Location, ShopHologram>> playerMap = (Map<UUID, Map<Location, ShopHologram>>) playerMapRaw;
             Iterator<Map.Entry<UUID, Map<Location, ShopHologram>>> iterator = playerMap.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<UUID, Map<Location, ShopHologram>> entry = iterator.next();
@@ -122,13 +123,13 @@ public final class HologramCleanup {
         }
 
         Object blockMapRaw = staticField("locationBlockHoloMap").get(null);
-        if (blockMapRaw instanceof Map<?, ?> rawMap) {
-            ((Map<Location, BlockBoundHologram>) rawMap).remove(location);
+        if (blockMapRaw instanceof Map) {
+            ((Map<Location, BlockBoundHologram>) blockMapRaw).remove(location);
         }
 
         Object inspectionsRaw = staticField("hologramInspections").get(null);
-        if (inspectionsRaw instanceof Map<?, ?> rawMap) {
-            Map<UUID, ShopHologram> inspections = (Map<UUID, ShopHologram>) rawMap;
+        if (inspectionsRaw instanceof Map) {
+            Map<UUID, ShopHologram> inspections = (Map<UUID, ShopHologram>) inspectionsRaw;
             inspections.entrySet().removeIf(entry -> entry.getValue() != null && location.equals(entry.getValue().getLocation()));
         }
     }
