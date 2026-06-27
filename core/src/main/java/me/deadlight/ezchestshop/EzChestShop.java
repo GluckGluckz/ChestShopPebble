@@ -259,15 +259,9 @@ public final class EzChestShop extends JavaPlugin {
 
     private boolean setupEconomy() {
         if (!PebbleEconomyBridge.economyAvailable()) {
-            EzChestShop.logConsole("&d[&bPebbleShop&d] &ePebbleCore economy is not ready; using Vault fallback if available.");
-            if (!PebbleVaultEconomy.setupEconomy()) {
-                return false;
-            }
-            econ = new PebbleVaultEconomy();
-            usingPebbleEconomy = false;
-            return true;
+            return false;
         }
-        econ = new PebbleEconomyBridge(this);
+        econ = new PebbleVaultEconomy();
         usingPebbleEconomy = true;
         EzChestShop.logConsole("&d[&bPebbleShop&d] &aHooked into PebbleCore Cash economy.");
         return true;
