@@ -24,7 +24,6 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.block.Sign;
@@ -36,7 +35,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -122,7 +120,7 @@ public final class SignShopListener implements Listener {
         Location shopLocation = SignShopDisplay.shopLocationForSign(event.getBlock());
         if (shopLocation == null) return;
         event.setCancelled(true);
-        event.getPlayer().sendMessage(org.bukkit.ChatColor.RED + "Use /pshop remove while looking at this sign to remove the shop.");
+        event.getPlayer().sendMessage(ChatColor.RED + "Use /pshop remove while looking at this sign to remove the shop.");
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -158,7 +156,7 @@ public final class SignShopListener implements Listener {
 
     private boolean isShopCommand(String command) {
         return command.equals("pshop") || command.equals("ps") || command.equals("pebbleshop")
-                || command.equals("pebblestore") || command.equals("ecs") || command.equals("cs")
+                || command.equals("peblestore") || command.equals("pebblestore") || command.equals("ecs") || command.equals("cs")
                 || command.equals("cshop") || command.equals("chestshop");
     }
 
@@ -276,12 +274,8 @@ public final class SignShopListener implements Listener {
 
         double buyPrice = 0D;
         double sellPrice = 0D;
-        int isDbuy = Config.settings_zero_equals_disabled
-                ? (buyPrice == 0 ? 1 : (Config.settings_defaults_dbuy ? 1 : 0))
-                : (Config.settings_defaults_dbuy ? 1 : 0);
-        int isDSell = Config.settings_zero_equals_disabled
-                ? (sellPrice == 0 ? 1 : (Config.settings_defaults_dsell ? 1 : 0))
-                : (Config.settings_defaults_dsell ? 1 : 0);
+        int isDbuy = 1;
+        int isDSell = 1;
 
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING, player.getUniqueId().toString());
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "buy"), PersistentDataType.DOUBLE, buyPrice);
@@ -304,8 +298,9 @@ public final class SignShopListener implements Listener {
 
         state.update();
         ShopContainer.createShop(target.getLocation(), player, shopItem, buyPrice, sellPrice, false,
-                isDbuy == 1, isDSell == 1, "none", true, false, Config.settings_defaults_rotation);
+                true, true, "none", true, false, Config.settings_defaults_rotation);
         player.sendMessage(lm.shopCreated());
+        player.sendMessage(ChatColor.AQUA + "Buying and selling start disabled. Set prices from the owner GUI before opening this shop to players.");
         return target.getLocation();
     }
 
@@ -381,7 +376,7 @@ public final class SignShopListener implements Listener {
         String ownerRaw = data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
         if (ownerRaw == null) return;
         if (!player.hasPermission("ecs.admin") && !player.getUniqueId().toString().equals(ownerRaw)) {
-            player.sendMessage(org.bukkit.ChatColor.RED + "You do not own this PebbleShop.");
+            player.sendMessage(ChatColor.RED + "You do not own this PebbleShop.");
             return;
         }
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "owner"));
@@ -398,7 +393,7 @@ public final class SignShopListener implements Listener {
         state.update();
         SignShopDisplay.remove(shopLocation);
         ShopContainer.deleteShop(shopLocation);
-        player.sendMessage(org.bukkit.ChatColor.GREEN + "PebbleShop removed.");
+        player.sendMessage(ChatColor.GREEN + "PebbleShop removed.");
     }
 
     private void openShop(Player player, Location shopLocation) {
