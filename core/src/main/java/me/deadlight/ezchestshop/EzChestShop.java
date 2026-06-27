@@ -22,6 +22,7 @@ import me.deadlight.ezchestshop.utils.CommandRegister;
 import me.deadlight.ezchestshop.utils.FloatingItem;
 import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.exceptions.CommandFetchException;
+import me.deadlight.ezchestshop.utils.signs.SignShopDisplay;
 import me.deadlight.ezchestshop.utils.worldguard.FlagRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
@@ -143,6 +144,7 @@ public final class EzChestShop extends JavaPlugin {
         }
 
         ShopContainer.queryShopsToMemory();
+        SignShopDisplay.syncAll();
         ShopContainer.startSqlQueueTask();
         if (Config.check_for_removed_shops) {
             LoadedChunksTask.startTask();
@@ -158,6 +160,7 @@ public final class EzChestShop extends JavaPlugin {
 
     private void registerListeners() {
         getServer().getPluginManager().registerEvents(new ChestOpeningListener(), this);
+        getServer().getPluginManager().registerEvents(new SignShopListener(), this);
         getServer().getPluginManager().registerEvents(new BlockBreakListener(), this);
         getServer().getPluginManager().registerEvents(new BlockPlaceListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerTransactionListener(), this);
@@ -169,11 +172,15 @@ public final class EzChestShop extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ChestShopBreakPrevention(), this);
         getServer().getPluginManager().registerEvents(new HologramLifecycleListener(), this);
 
-        if (Config.holodistancing) {
-            getServer().getPluginManager().registerEvents(new PlayerCloseToChestListener(), this);
+        if (Config.showholo) {
+            if (Config.holodistancing) {
+                getServer().getPluginManager().registerEvents(new PlayerCloseToChestListener(), this);
+            } else {
+                getServer().getPluginManager().registerEvents(new PlayerLookingAtChestShop(), this);
+                getServer().getPluginManager().registerEvents(new PlayerLeavingListener(), this);
+            }
         } else {
-            getServer().getPluginManager().registerEvents(new PlayerLookingAtChestShop(), this);
-            getServer().getPluginManager().registerEvents(new PlayerLeavingListener(), this);
+            logConsole("&d[&bPebbleShop&d] &eFloating holograms disabled. Using physical sign shops.");
         }
 
         if (advancedregionmarket) {
