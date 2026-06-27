@@ -12,7 +12,6 @@ import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.signs.SignShopDisplay;
 import me.deadlight.ezchestshop.utils.worldguard.FlagRegistry;
 import me.deadlight.ezchestshop.utils.worldguard.WorldGuardUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
@@ -61,19 +60,34 @@ public final class SignShopListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onSignRemoveCommand(PlayerCommandPreprocessEvent event) {
+    public void onShopCommand(PlayerCommandPreprocessEvent event) {
         String message = event.getMessage();
         if (message == null) return;
         String normalized = message.trim().toLowerCase(Locale.ROOT);
         if (normalized.startsWith("/")) normalized = normalized.substring(1);
         String[] parts = normalized.split("\\s+");
-        if (parts.length < 2 || !isShopCommand(parts[0]) || !parts[1].equals("remove")) return;
+        if (parts.length < 1 || !isShopCommand(parts[0])) return;
 
+        String sub = parts.length >= 2 ? parts[1] : "";
         Block target = event.getPlayer().getTargetBlockExact(6);
-        Location shopLocation = SignShopDisplay.shopLocationForSign(target);
-        if (shopLocation == null) return;
-        event.setCancelled(true);
-        removeShopFromSign(event.getPlayer(), shopLocation);
+        Location signShopLocation = SignShopDisplay.shopLocationForSign(target);
+        if (signShopLocation != null && sub.equals("remove")) {
+            event.setCancelled(true);
+            removeShopFromSign(event.getPlayer(), signShopLocation);
+            return;
+        }
+
+        final Location targetShopLocation = signShopLocation != null ? signShopLocation : shopLocationFromContainer(target);
+        EzChestShop.getScheduler().runTaskLater(EzChestShop.getPlugin(), new Runnable() {
+            @Override
+            public void run() {
+                if (sub.equals("remove") && targetShopLocation != null && !ShopContainer.isShop(targetShopLocation)) {
+                    SignShopDisplay.remove(targetShopLocation);
+                } else {
+                    SignShopDisplay.syncAll();
+                }
+            }
+        }, 2L);
     }
 
     private boolean isShopCommand(String command) {
@@ -82,10 +96,20 @@ public final class SignShopListener implements Listener {
                 || command.equals("cshop") || command.equals("chestshop");
     }
 
+    private Location shopLocationFromContainer(Block block) {
+        if (block == null) return null;
+        if (ShopContainer.isShop(block.getLocation())) return block.getLocation();
+        if (!(block.getState() instanceof TileState)) return null;
+        PersistentDataContainer data = ((TileState) block.getState()).getPersistentDataContainer();
+        if (data.has(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING)) return block.getLocation();
+        return null;
+    }
+
     private void removeShopFromSign(Player player, Location shopLocation) {
         Block shopBlock = shopLocation.getBlock();
         if (!(shopBlock.getState() instanceof TileState)) return;
-        PersistentDataContainer data = ((TileState) shopBlock.getState()).getPersistentDataContainer();
+        TileState state = (TileState) shopBlock.getState();
+        PersistentDataContainer data = state.getPersistentDataContainer();
         String ownerRaw = data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
         if (ownerRaw == null) return;
         if (!player.hasPermission("ecs.admin") && !player.getUniqueId().toString().equals(ownerRaw)) {
@@ -103,7 +127,8 @@ public final class SignShopListener implements Listener {
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "shareincome"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "adminshop"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "rotation"));
-        ((TileState) shopBlock.getState()).update();
+        state.update();
+        SignShopDisplay.remove(shopLocation);
         ShopContainer.deleteShop(shopLocation);
         player.sendMessage(org.bukkit.ChatColor.GREEN + "PebbleShop removed.");
     }
