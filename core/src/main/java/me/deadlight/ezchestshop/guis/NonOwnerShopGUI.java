@@ -9,6 +9,7 @@ import me.deadlight.ezchestshop.data.LanguageManager;
 import me.deadlight.ezchestshop.data.ShopContainer;
 import me.deadlight.ezchestshop.EzChestShop;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
+import me.deadlight.ezchestshop.utils.ShopItemUtils;
 import me.deadlight.ezchestshop.utils.SignMenuFactory;
 import me.deadlight.ezchestshop.utils.Utils;
 import org.bukkit.*;
@@ -22,8 +23,6 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-//mojodi
-//balance
 
 public class NonOwnerShopGUI {
 
@@ -52,36 +51,44 @@ public class NonOwnerShopGUI {
         double buyPrice = data.get(new NamespacedKey(EzChestShop.getPlugin(), "buy"), PersistentDataType.DOUBLE);
         boolean disabledBuy = data.get(new NamespacedKey(EzChestShop.getPlugin(), "dbuy"), PersistentDataType.INTEGER) == 1;
         boolean disabledSell = data.get(new NamespacedKey(EzChestShop.getPlugin(), "dsell"), PersistentDataType.INTEGER) == 1;
+        boolean emptyShopItem = ShopItemUtils.isEmptyShopItem(data);
 
         ContainerGui container = GuiData.getShop();
 
         Gui gui = new Gui(container.getRows(), lm.guiNonOwnerTitle(shopOwner));
         gui.getFiller().fill(container.getBackground());
 
-        ItemStack mainitem = Utils.decodeItem(data.get(new NamespacedKey(EzChestShop.getPlugin(), "item"), PersistentDataType.STRING));
+        ItemStack mainitem = ShopItemUtils.getShopItem(data);
         if (container.hasItem("shop-item")) {
-            ItemStack guiMainItem = mainitem.clone();
+            ItemStack guiMainItem = emptyShopItem ? ShopItemUtils.shopNotReadyItem() : mainitem.clone();
             ItemMeta mainmeta = guiMainItem.getItemMeta();
-            // Set the lore and keep the old one if available
-            if (mainmeta.hasLore()) {
-                List<String> prevLore = mainmeta.getLore();
-                prevLore.add("");
-                List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice));
-                prevLore.addAll(mainItemLore);
-                mainmeta.setLore(prevLore);
-            } else {
-                List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice));
-                mainmeta.setLore(mainItemLore);
+            if (mainmeta != null && !emptyShopItem) {
+                if (mainmeta.hasLore()) {
+                    List<String> prevLore = mainmeta.getLore();
+                    prevLore.add("");
+                    List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice));
+                    prevLore.addAll(mainItemLore);
+                    mainmeta.setLore(prevLore);
+                } else {
+                    List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice));
+                    mainmeta.setLore(mainItemLore);
+                }
+                guiMainItem.setItemMeta(mainmeta);
             }
-            guiMainItem.setItemMeta(mainmeta);
             GuiItem guiitem = new GuiItem(guiMainItem, event -> {
                 event.setCancelled(true);
+                if (emptyShopItem) {
+                    player.sendMessage(ChatColor.YELLOW + "This shop is still being configured by the owner.");
+                }
             });
 
             Utils.addItemIfEnoughSlots(gui, container.getItem("shop-item").getSlot(), guiitem);
         }
 
         container.getItemKeys().forEach(key -> {
+            if (emptyShopItem && (key.startsWith("sell-") || key.startsWith("buy-"))) {
+                return;
+            }
             if (key.startsWith("sell-")) {
                 String amountString = key.split("-")[1];
                 int amount = 1;
@@ -100,7 +107,6 @@ public class NonOwnerShopGUI {
 
                 final int finalAmount = amount;
                 GuiItem sellItem = new GuiItem(disablingCheck(sellItemStack.getItem(), disabledSell), event -> {
-                    // sell things
                     event.setCancelled(true);
                     if (disabledSell) {
                         return;
@@ -128,7 +134,6 @@ public class NonOwnerShopGUI {
 
                 final int finalAmount = amount;
                 GuiItem buyItem = new GuiItem(disablingCheck(buyItemStack.getItem(), disabledBuy), event -> {
-                    // buy things
                     event.setCancelled(true);
                     if (disabledBuy) {
                         return;
@@ -150,7 +155,7 @@ public class NonOwnerShopGUI {
             }
         });
 
-        if (container.hasItem("custom-buy-sell")) {
+        if (!emptyShopItem && container.hasItem("custom-buy-sell")) {
 
             List<String> possibleCounts = Utils.calculatePossibleAmount(Bukkit.getOfflinePlayer(player.getUniqueId()), offlinePlayerOwner, player.getInventory().getStorageContents(), Utils.getBlockInventory(containerBlock).getStorageContents(), buyPrice, sellPrice, mainitem);
             ContainerGuiItem customBuySellItemStack = container.getItem("custom-buy-sell").setName(lm.customAmountSignTitle()).setLore(lm.customAmountSignLore(possibleCounts.get(0), possibleCounts.get(1)));
@@ -158,7 +163,6 @@ public class NonOwnerShopGUI {
             GuiItem guiSignItem = new GuiItem(customBuySellItemStack.getItem(), event -> {
                 event.setCancelled(true);
                 if (event.isRightClick()) {
-                    //buy
                     if (disabledBuy) {
                         player.sendMessage(lm.disabledBuyingMessage());
                         return;
@@ -193,7 +197,6 @@ public class NonOwnerShopGUI {
 
 
                 } else if (event.isLeftClick()) {
-                    //sell
                     if (disabledSell) {
                         player.sendMessage(lm.disabledSellingMessage());
                         return;
@@ -231,24 +234,17 @@ public class NonOwnerShopGUI {
                 }
             });
             if (Config.settings_custom_amout_transactions) {
-                //sign item
                 Utils.addItemIfEnoughSlots(gui, customBuySellItemStack.getSlot(), guiSignItem);
             }
         }
 
 
         gui.open(player);
-
-
-
     }
-
-    
 
     private ItemStack disablingCheck(ItemStack mainItem, boolean disabling) {
         LanguageManager lm = new LanguageManager();
         if (disabling){
-            //disabled Item
             ItemStack disabledItemStack = new ItemStack(Material.BARRIER, mainItem.getAmount());
             ItemMeta disabledItemMeta = disabledItemStack.getItemMeta();
             disabledItemMeta.setDisplayName(lm.disabledButtonTitle());
