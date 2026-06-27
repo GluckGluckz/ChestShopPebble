@@ -6,7 +6,6 @@ import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.objects.ShopSettings;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -16,15 +15,14 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.block.TileState;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Sign-backed PebbleShop display. Signs are player-placed with [sign] and then linked
- * to the shop container through persistent data.
+ * Sign-backed PebbleShop display. Signs are player-placed with [shop] or [sign]
+ * and then linked to the shop container through persistent data.
  */
 public final class SignShopDisplay {
 
@@ -137,8 +135,8 @@ public final class SignShopDisplay {
         boolean admin = settings != null && settings.isAdminshop();
 
         return new String[] {
-                color(admin ? "&d&lAdmin Shop" : "&2&lShop"),
-                color("&a&l✔ Right Click! ✔"),
+                color(admin ? "&d&lAdmin Shop" : "&b&lPebbleShop"),
+                color("&a&lRight Click"),
                 color("&fOwner:"),
                 color("&b" + compactText(ownerName(shop), 20))
         };
@@ -146,8 +144,8 @@ public final class SignShopDisplay {
 
     private static String[] fallbackLines() {
         return new String[] {
-                color("&2&lShop"),
-                color("&a&l✔ Right Click! ✔"),
+                color("&b&lPebbleShop"),
+                color("&a&lRight Click"),
                 color("&fOwner:"),
                 color("&bUnknown")
         };
@@ -158,12 +156,6 @@ public final class SignShopDisplay {
         OfflinePlayer owner = Bukkit.getOfflinePlayer(shop.getOwnerID());
         String name = owner.getName();
         return name == null || name.trim().isEmpty() ? "Unknown" : name.trim();
-    }
-
-    private static String compactItemName(ItemStack item) {
-        String name = item == null ? "Unknown Item" : ChatColor.stripColor(Utils.getFinalItemName(item));
-        if (name == null || name.trim().isEmpty()) name = "Unknown Item";
-        return compactText(name.trim(), 20);
     }
 
     private static String compactText(String text, int maxLength) {
