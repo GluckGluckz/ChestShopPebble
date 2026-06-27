@@ -285,4 +285,9 @@ public class SettingsGUI {
         }
         return true;
     }
+
+    public static void openCustomMessageEditor(Player player, org.bukkit.Location location) {
+        player.closeInventory();
+        player.sendMessage(Utils.colorify("&cPebbleShop hologram messages are disabled because shops now use physical signs."));
+    }
 }
