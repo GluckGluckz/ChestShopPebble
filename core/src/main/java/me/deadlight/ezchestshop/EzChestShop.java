@@ -46,16 +46,12 @@ public final class EzChestShop extends JavaPlugin {
 
     private static TaskScheduler scheduler;
 
-    /**
-     * Get the scheduler of the plugin.
-     */
     public static TaskScheduler getScheduler() {
         return scheduler;
     }
 
     @Override
     public void onLoad() {
-        // Adds Custom Flags to WorldGuard!
         if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             worldguard = true;
             FlagRegistry.onLoad();
@@ -82,11 +78,8 @@ public final class EzChestShop extends JavaPlugin {
             e.printStackTrace();
         }
         Config.loadConfig();
-        // Pebble Quest now uses physical sign shops. Keep old hologram settings ignored even if a live config still has them enabled.
-        Config.showholo = false;
-        Config.holodistancing = false;
+        disableLegacyHolograms();
 
-        // Load database.
         if (Config.database_type != null) {
             Utils.recognizeDatabase();
         } else {
@@ -155,6 +148,16 @@ public final class EzChestShop extends JavaPlugin {
 
         UpdateChecker checker = new UpdateChecker();
         checker.check();
+    }
+
+    private void disableLegacyHolograms() {
+        Config.showholo = false;
+        Config.holodistancing = false;
+        Config.holodistancing_show_item_first = false;
+        Config.holo_rotation = false;
+        Config.settings_hologram_message_enabled = false;
+        Config.settings_hologram_message_show_always = false;
+        Config.settings_hologram_message_show_empty_shop_always = false;
     }
 
     private boolean ensureDataFolder() {
@@ -258,54 +261,31 @@ public final class EzChestShop extends JavaPlugin {
         logConsole("&d[&bPebbleShop&d] &4Plugin is now disabled.");
     }
 
-    public static EzChestShop getPlugin() {
-        return plugin;
-    }
-
-    public static void logConsole(String str) {
-        EzChestShop.getPlugin().getServer().getConsoleSender().sendMessage(Utils.colorify(str));
-    }
-
-    public static void logDebug(String str) {
-        if (Config.debug_logging) {
-            EzChestShop.getPlugin().getServer().getConsoleSender().sendMessage("[PebbleShop-Debug] " + Utils.colorify(str));
-        }
+    private boolean isSupportedServerVersion() {
+        String version = getServer().getBukkitVersion().toLowerCase(Locale.ROOT);
+        return version.contains("1.21") || version.contains("26.");
     }
 
     private boolean setupEconomy() {
-        if (!PebbleEconomyBridge.economyAvailable()) {
-            return false;
+        ShopEconomy pebbleBridge = new PebbleEconomyBridge();
+        if (pebbleBridge.isReady()) {
+            econ = pebbleBridge;
+            usingPebbleEconomy = true;
+            logConsole("&d[&bPebbleShop&d] &aHooked into PebbleCore Cash economy.");
+            return true;
         }
-        econ = new PebbleVaultEconomy();
-        usingPebbleEconomy = true;
-        EzChestShop.logConsole("&d[&bPebbleShop&d] &aHooked into PebbleCore Cash economy.");
-        return true;
-    }
 
-    private boolean isSupportedServerVersion() {
-        String craftPackage = safeLower(Bukkit.getServer().getClass().getPackage().getName());
-        String bukkitVersion = safeLower(Bukkit.getBukkitVersion());
-        String serverVersion = safeLower(Bukkit.getVersion());
-        String apiVersion = safeLower(getDescription().getAPIVersion());
-        String combined = craftPackage + " " + bukkitVersion + " " + serverVersion + " " + apiVersion;
+        PebbleVaultEconomy vaultBridge = new PebbleVaultEconomy();
+        if (vaultBridge.isReady()) {
+            econ = vaultBridge;
+            usingPebbleEconomy = false;
+            logConsole("&d[&bPebbleShop&d] &aHooked into Vault economy.");
+            return true;
+        }
 
-        return combined.contains("26.1.2")
-                || combined.contains("26_1_2")
-                || combined.contains("1.16")
-                || combined.contains("1_16")
-                || combined.contains("1.17")
-                || combined.contains("1_17")
-                || combined.contains("1.18")
-                || combined.contains("1_18")
-                || combined.contains("1.19")
-                || combined.contains("1_19")
-                || combined.contains("1.20")
-                || combined.contains("1_20")
-                || combined.contains("paper");
-    }
-
-    private String safeLower(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+        econ = null;
+        usingPebbleEconomy = false;
+        return false;
     }
 
     public static ShopEconomy getEconomy() {
@@ -316,7 +296,17 @@ public final class EzChestShop extends JavaPlugin {
         return usingPebbleEconomy;
     }
 
+    public static EzChestShop getPlugin() {
+        return plugin;
+    }
+
     public DatabaseManager getDatabase() {
-        return Utils.databaseManager;
+        return Utils.database;
+    }
+
+    public static void logConsole(String str) {
+        if (Bukkit.getConsoleSender() == null)
+            return;
+        Bukkit.getConsoleSender().sendMessage(Utils.colorify(str));
     }
 }
