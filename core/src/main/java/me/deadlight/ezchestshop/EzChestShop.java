@@ -82,6 +82,9 @@ public final class EzChestShop extends JavaPlugin {
             e.printStackTrace();
         }
         Config.loadConfig();
+        // Pebble Quest now uses physical sign shops. Keep old hologram settings ignored even if a live config still has them enabled.
+        Config.showholo = false;
+        Config.holodistancing = false;
 
         // Load database.
         if (Config.database_type != null) {
