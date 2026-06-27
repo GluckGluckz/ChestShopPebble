@@ -9,11 +9,13 @@ import me.deadlight.ezchestshop.data.gui.GuiData;
 import me.deadlight.ezchestshop.data.LanguageManager;
 import me.deadlight.ezchestshop.data.ShopContainer;
 import me.deadlight.ezchestshop.EzChestShop;
+import me.deadlight.ezchestshop.utils.ShopItemUtils;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.Utils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.DoubleChest;
+import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.DoubleChestInventory;
 import org.bukkit.inventory.Inventory;
@@ -21,12 +23,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-//success player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 0.5f);
-//fail player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-//storage player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.5f, 0.5f);
 
 public class OwnerShopGUI {
     public OwnerShopGUI() {
@@ -60,36 +60,71 @@ public class OwnerShopGUI {
                 PersistentDataType.INTEGER) == 1;
         boolean disabledSell = data.get(new NamespacedKey(EzChestShop.getPlugin(), "dsell"),
                 PersistentDataType.INTEGER) == 1;
+        boolean emptyShopItem = ShopItemUtils.isEmptyShopItem(data);
 
         ContainerGui container = GuiData.getShop();
 
         Gui gui = new Gui(container.getRows(), lm.guiOwnerTitle(shopOwner));
         gui.getFiller().fill(container.getBackground());
 
-        ItemStack mainitem = Utils
-                .decodeItem(data.get(new NamespacedKey(EzChestShop.getPlugin(), "item"), PersistentDataType.STRING));
+        ItemStack mainitem = ShopItemUtils.getShopItem(data);
         if (container.hasItem("shop-item")) {
-            ItemStack guiMainItem = mainitem.clone();
+            ItemStack guiMainItem = emptyShopItem ? ShopItemUtils.emptyShopItem() : mainitem.clone();
             ItemMeta mainmeta = guiMainItem.getItemMeta();
-            // Set the lore and keep the old one if available
-            if (mainmeta.hasLore()) {
-                List<String> prevLore = mainmeta.getLore();
-                prevLore.add("");
-                List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice));
-                prevLore.addAll(mainItemLore);
-                mainmeta.setLore(prevLore);
-            } else {
-                List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice));
-                mainmeta.setLore(mainItemLore);
+            if (mainmeta != null) {
+                if (emptyShopItem) {
+                    mainmeta.setDisplayName(Utils.colorify("&e&lSelect Shop Item"));
+                    mainmeta.setLore(Arrays.asList(
+                            Utils.colorify("&7This shop is empty and cannot trade yet."),
+                            Utils.colorify(""),
+                            Utils.colorify("&fPick up the item you want to sell,"),
+                            Utils.colorify("&fthen click this slot to select it."),
+                            Utils.colorify(""),
+                            Utils.colorify("&aAfter selecting an item, open settings"),
+                            Utils.colorify("&ato set buy and sell prices.")
+                    ));
+                } else if (mainmeta.hasLore()) {
+                    List<String> prevLore = mainmeta.getLore();
+                    prevLore.add("");
+                    List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice),
+                            Utils.colorify(""), Utils.colorify("&eClick with another item on your cursor to replace it."));
+                    prevLore.addAll(mainItemLore);
+                    mainmeta.setLore(prevLore);
+                } else {
+                    List<String> mainItemLore = Arrays.asList(lm.initialBuyPrice(buyPrice), lm.initialSellPrice(sellPrice),
+                            Utils.colorify(""), Utils.colorify("&eClick with another item on your cursor to replace it."));
+                    mainmeta.setLore(mainItemLore);
+                }
+                guiMainItem.setItemMeta(mainmeta);
             }
-            guiMainItem.setItemMeta(mainmeta);
             GuiItem guiitem = new GuiItem(guiMainItem, event -> {
                 event.setCancelled(true);
+                ItemStack selected = event.getCursor();
+                if (selected == null || selected.getType() == Material.AIR) {
+                    player.sendMessage(ChatColor.YELLOW + "Pick up the item you want this shop to trade, then click the shop item slot.");
+                    return;
+                }
+                if (Utils.isShulkerBox(selected.getType()) && Utils.isShulkerBox(containerBlock)) {
+                    player.sendMessage(lm.invalidShopItem());
+                    return;
+                }
+                if (ShopItemUtils.setShopItem(containerBlock, selected)) {
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.25f);
+                    player.sendMessage(ChatColor.GREEN + "Shop item set to " + ChatColor.AQUA
+                            + ChatColor.stripColor(Utils.getFinalItemName(selected)) + ChatColor.GREEN + ".");
+                    PersistentDataContainer refreshedData = ((TileState) containerBlock.getState()).getPersistentDataContainer();
+                    showGUI(player, refreshedData, containerBlock, isAdmin);
+                } else {
+                    player.sendMessage(ChatColor.RED + "PebbleShop could not save that shop item.");
+                }
             });
             Utils.addItemIfEnoughSlots(gui, container.getItem("shop-item").getSlot(), guiitem);
         }
 
         container.getItemKeys().forEach(key -> {
+            if (emptyShopItem && (key.startsWith("sell-") || key.startsWith("buy-"))) {
+                return;
+            }
             if (key.startsWith("sell-")) {
 
                 String amountString = key.split("-")[1];
@@ -113,7 +148,6 @@ public class OwnerShopGUI {
 
                 final int finalAmount = amount;
                 GuiItem sellItem = new GuiItem(disablingCheck(sellItemStack.getItem(), disabledSell), event -> {
-                    // sell things
                     event.setCancelled(true);
                     if (disabledSell) {
                         return;
@@ -150,7 +184,6 @@ public class OwnerShopGUI {
 
                 final int finalAmount = amount;
                 GuiItem buyItem = new GuiItem(disablingCheck(buyItemStack.getItem(), disabledBuy), event -> {
-                    // buy things
                     event.setCancelled(true);
                     if (disabledBuy) {
                         return;
@@ -183,7 +216,6 @@ public class OwnerShopGUI {
             GuiItem storageGUI = new GuiItem(guiStorageItem.getItem(), event -> {
                 event.setCancelled(true);
 
-                // Check if the shop still exists at this location
                 if (!ShopContainer.isShop(containerBlock.getLocation())) {
                     player.sendMessage(lm.chestShopProblem());
                     player.closeInventory();
@@ -199,26 +231,22 @@ public class OwnerShopGUI {
                 player.openInventory(lastinv);
             });
 
-            // containerBlock storage
             Utils.addItemIfEnoughSlots(gui, guiStorageItem.getSlot(), storageGUI);
         }
 
-        // settings item
         if (container.hasItem("settings")) {
             ContainerGuiItem settingsItemStack = container.getItem("settings");
             settingsItemStack.setName(lm.settingsButton());
             GuiItem settingsGui = new GuiItem(settingsItemStack.getItem(), event -> {
                 event.setCancelled(true);
-                // opening the settigns menu
                 SettingsGUI settingsGUI = new SettingsGUI();
                 settingsGUI.showGUI(player, containerBlock, isAdmin);
                 player.playSound(player.getLocation(), Sound.BLOCK_PISTON_EXTEND, 0.5f, 0.5f);
             });
-            // settings item
             Utils.addItemIfEnoughSlots(gui, settingsItemStack.getSlot(), settingsGui);
         }
 
-        if (container.hasItem("custom-buy-sell")) {
+        if (!emptyShopItem && container.hasItem("custom-buy-sell")) {
             List<String> possibleCounts = Utils.calculatePossibleAmount(Bukkit.getOfflinePlayer(player.getUniqueId()),
                     offlinePlayerOwner, player.getInventory().getStorageContents(),
                     Utils.getBlockInventory(containerBlock).getStorageContents(), buyPrice, sellPrice, mainitem);
@@ -229,18 +257,15 @@ public class OwnerShopGUI {
             GuiItem guiSignItem = new GuiItem(customBuySellItemStack.getItem(), event -> {
                 event.setCancelled(true);
                 if (event.isRightClick()) {
-                    // buy
                     player.sendMessage(lm.selfTransaction());
 
                 } else if (event.isLeftClick()) {
-                    // sell
                     player.sendMessage(lm.selfTransaction());
 
                 }
             });
 
             if (Config.settings_custom_amout_transactions) {
-                // sign item
                 Utils.addItemIfEnoughSlots(gui, customBuySellItemStack.getSlot(), guiSignItem);
             }
         }
@@ -251,7 +276,6 @@ public class OwnerShopGUI {
 
     private ItemStack disablingCheck(ItemStack mainItem, boolean disabling) {
         if (disabling) {
-            // disabled Item
             LanguageManager lm = new LanguageManager();
             ItemStack disabledItemStack = new ItemStack(Material.BARRIER, mainItem.getAmount());
             ItemMeta disabledItemMeta = disabledItemStack.getItemMeta();

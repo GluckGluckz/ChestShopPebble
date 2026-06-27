@@ -4,8 +4,10 @@ PebbleShop is Pebble Quest's player chest shop plugin. It is based on EzChestSho
 
 ## What it does
 
-- Lets players create market stalls by placing a sign on or next to a supported container and typing `[sign]` on the sign. The shop starts with buying and selling disabled so the owner can set prices safely from the owner GUI.
-- Existing shops can be given a new physical shop sign the same way: place a sign on or next to the shop container and type `[sign]`.
+- Lets players create market stalls by placing a sign on or next to a supported container and typing `[shop]` on the sign. `[sign]` is still accepted as a compatibility alias.
+- New sign-created shops start empty and safe: buying and selling are disabled until the owner chooses the shop item in the GUI and sets prices.
+- Existing shops can be given a new physical shop sign the same way: place a sign on or next to the shop container and type `[shop]`.
+- Shop removal is sign-first too: owners/admins remove a shop by breaking its linked shop sign. `/pshop create` and `/pshop remove` are intentionally disabled for players.
 - Supports player shops, admin shops, buy/sell toggles, shop admins, shared income, transaction logs, custom hologram messages, and offline profit reports.
 - Keeps the internal `/ecs` command key for inherited code compatibility while promoting Pebble aliases like `/pshop`, `/ps`, `/pebbleshop`, and `/pebblestore`.
 - Uses PebbleCore Cash as the economy source, so shop purchases, sales, and shared income use the same active-profile wallet as the rest of Pebble Quest.

@@ -10,6 +10,7 @@ import me.deadlight.ezchestshop.guis.AdminShopGUI;
 import me.deadlight.ezchestshop.guis.NonOwnerShopGUI;
 import me.deadlight.ezchestshop.guis.OwnerShopGUI;
 import me.deadlight.ezchestshop.guis.ServerShopGUI;
+import me.deadlight.ezchestshop.utils.ShopItemUtils;
 import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.signs.SignShopDisplay;
@@ -45,12 +46,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Sign-first PebbleShop UX: [sign] creates/links signs, right-click opens shops, signs are protected. */
+/** Sign-first PebbleShop UX: [shop]/[sign] creates and links signs, right-click opens shops. */
 public final class SignShopListener implements Listener {
 
     private final LanguageManager lm = new LanguageManager();
@@ -67,14 +67,14 @@ public final class SignShopListener implements Listener {
         Block containerBlock = findContainerForSign(signBlock);
         if (containerBlock == null) {
             paintInvalidSign(event, "No container");
-            player.sendMessage(ChatColor.RED + "Place the [sign] sign on or next to a chest, barrel, or shulker shop container.");
+            player.sendMessage(ChatColor.RED + "Place the [shop] sign on or next to a chest, barrel, or shulker shop container.");
             return;
         }
 
         Location shopLocation = shopLocationFromContainer(containerBlock);
         boolean createdShop = false;
         if (shopLocation == null) {
-            shopLocation = createShopFromSign(player, containerBlock);
+            shopLocation = createEmptyShopFromSign(player, containerBlock);
             createdShop = shopLocation != null;
         } else if (!canManageShopSign(player, shopLocation)) {
             paintInvalidSign(event, "Not owner");
@@ -103,7 +103,7 @@ public final class SignShopListener implements Listener {
         }, 1L);
 
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.35f);
-        player.sendMessage(ChatColor.GREEN + "PebbleShop sign ready. " + ChatColor.AQUA + "Right-click it to open the shop.");
+        player.sendMessage(ChatColor.GREEN + "PebbleShop sign ready. " + ChatColor.AQUA + "Right-click it to choose an item and set prices.");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -119,8 +119,16 @@ public final class SignShopListener implements Listener {
     public void onShopSignBreak(BlockBreakEvent event) {
         Location shopLocation = SignShopDisplay.shopLocationForSign(event.getBlock());
         if (shopLocation == null) return;
-        event.setCancelled(true);
-        event.getPlayer().sendMessage(ChatColor.RED + "Use /pshop remove while looking at this sign to remove the shop.");
+
+        Player player = event.getPlayer();
+        if (!canManageShopSign(player, shopLocation)) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "You do not own this PebbleShop.");
+            return;
+        }
+
+        removeShopFromSign(player, shopLocation, false);
+        player.playSound(player.getLocation(), Sound.BLOCK_WOOD_BREAK, 0.7f, 1.0f);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -133,23 +141,18 @@ public final class SignShopListener implements Listener {
         if (parts.length < 1 || !isShopCommand(parts[0])) return;
 
         String sub = parts.length >= 2 ? parts[1] : "";
-        Block target = event.getPlayer().getTargetBlockExact(6);
-        Location signShopLocation = SignShopDisplay.shopLocationForSign(target);
-        if (signShopLocation != null && sub.equals("remove")) {
+        if (sub.equals("create") || sub.equals("remove")) {
             event.setCancelled(true);
-            removeShopFromSign(event.getPlayer(), signShopLocation);
+            event.getPlayer().sendMessage(ChatColor.RED + "PebbleShop no longer uses /pshop " + sub + ". "
+                    + ChatColor.WHITE + "Place a sign with " + ChatColor.AQUA + "[shop]" + ChatColor.WHITE
+                    + " to create a shop, or break the shop sign to remove it.");
             return;
         }
 
-        final Location targetShopLocation = signShopLocation != null ? signShopLocation : shopLocationFromContainer(target);
         EzChestShop.getScheduler().runTaskLater(EzChestShop.getPlugin(), new Runnable() {
             @Override
             public void run() {
-                if (sub.equals("remove") && targetShopLocation != null && !ShopContainer.isShop(targetShopLocation)) {
-                    SignShopDisplay.remove(targetShopLocation);
-                } else {
-                    SignShopDisplay.syncAll();
-                }
+                SignShopDisplay.syncAll();
             }
         }, 2L);
     }
@@ -163,7 +166,9 @@ public final class SignShopListener implements Listener {
     private boolean containsSignTrigger(SignChangeEvent event) {
         for (int i = 0; i < 4; i++) {
             String line = ChatColor.stripColor(event.getLine(i));
-            if (line != null && line.trim().equalsIgnoreCase("[sign]")) return true;
+            if (line == null) continue;
+            String normalized = line.trim().toLowerCase(Locale.ROOT);
+            if (normalized.equals("[shop]") || normalized.equals("[sign]")) return true;
         }
         return false;
     }
@@ -224,7 +229,7 @@ public final class SignShopListener implements Listener {
         return data.has(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
     }
 
-    private Location createShopFromSign(Player player, Block target) {
+    private Location createEmptyShopFromSign(Player player, Block target) {
         if (target == null || target.getType() == Material.AIR || !(target.getState() instanceof TileState)) {
             player.sendMessage(lm.lookAtChest());
             return null;
@@ -259,16 +264,10 @@ public final class SignShopListener implements Listener {
             return null;
         }
 
-        ItemStack heldItem = player.getInventory().getItemInMainHand();
-        if (heldItem == null || heldItem.getType() == Material.AIR) {
-            player.sendMessage(lm.holdSomething());
-            return null;
-        }
-
-        ItemStack shopItem = heldItem.clone();
-        shopItem.setAmount(1);
-        if (Utils.isShulkerBox(shopItem.getType()) && Utils.isShulkerBox(target)) {
-            player.sendMessage(lm.invalidShopItem());
+        ItemStack shopItem = ShopItemUtils.emptyShopItem();
+        String encodedItem = Utils.encodeItem(shopItem);
+        if (encodedItem == null) {
+            player.sendMessage(ChatColor.RED + "PebbleShop could not create the empty shop item placeholder.");
             return null;
         }
 
@@ -280,6 +279,8 @@ public final class SignShopListener implements Listener {
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING, player.getUniqueId().toString());
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "buy"), PersistentDataType.DOUBLE, buyPrice);
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "sell"), PersistentDataType.DOUBLE, sellPrice);
+        container.set(new NamespacedKey(EzChestShop.getPlugin(), "item"), PersistentDataType.STRING, encodedItem);
+        container.set(ShopItemUtils.emptyShopItemKey(), PersistentDataType.INTEGER, 1);
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "msgtoggle"), PersistentDataType.INTEGER, Config.settings_defaults_transactions ? 1 : 0);
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "dbuy"), PersistentDataType.INTEGER, isDbuy);
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "dsell"), PersistentDataType.INTEGER, isDSell);
@@ -288,19 +289,11 @@ public final class SignShopListener implements Listener {
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "adminshop"), PersistentDataType.INTEGER, 0);
         container.set(new NamespacedKey(EzChestShop.getPlugin(), "rotation"), PersistentDataType.STRING, Config.settings_defaults_rotation);
 
-        try {
-            Utils.storeItem(shopItem, container);
-        } catch (IOException exception) {
-            exception.printStackTrace();
-            player.sendMessage(ChatColor.RED + "PebbleShop could not save this shop item.");
-            return null;
-        }
-
         state.update();
         ShopContainer.createShop(target.getLocation(), player, shopItem, buyPrice, sellPrice, false,
                 true, true, "none", true, false, Config.settings_defaults_rotation);
         player.sendMessage(lm.shopCreated());
-        player.sendMessage(ChatColor.AQUA + "Buying and selling start disabled. Set prices from the owner GUI before opening this shop to players.");
+        player.sendMessage(ChatColor.AQUA + "This shop starts empty. Right-click the sign, choose an item in the GUI, then set prices.");
         return target.getLocation();
     }
 
@@ -365,11 +358,11 @@ public final class SignShopListener implements Listener {
         event.setLine(0, ChatColor.RED + "PebbleShop");
         event.setLine(1, ChatColor.DARK_RED + "Invalid Sign");
         event.setLine(2, ChatColor.GRAY + reason);
-        event.setLine(3, ChatColor.GRAY + "Use [sign]");
+        event.setLine(3, ChatColor.GRAY + "Use [shop]");
     }
 
-    private void removeShopFromSign(Player player, Location shopLocation) {
-        Block shopBlock = shopLocation.getBlock();
+    private void removeShopFromSign(Player player, Location shopLocation, boolean removeLinkedSigns) {
+        Block shopBlock = resolveDoubleChestShopBlock(shopLocation.getBlock());
         if (!(shopBlock.getState() instanceof TileState)) return;
         TileState state = (TileState) shopBlock.getState();
         PersistentDataContainer data = state.getPersistentDataContainer();
@@ -383,6 +376,7 @@ public final class SignShopListener implements Listener {
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "buy"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "sell"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "item"));
+        data.remove(ShopItemUtils.emptyShopItemKey());
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "msgtoggle"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "dbuy"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "dsell"));
@@ -391,7 +385,9 @@ public final class SignShopListener implements Listener {
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "adminshop"));
         data.remove(new NamespacedKey(EzChestShop.getPlugin(), "rotation"));
         state.update();
-        SignShopDisplay.remove(shopLocation);
+        if (removeLinkedSigns) {
+            SignShopDisplay.remove(shopLocation);
+        }
         ShopContainer.deleteShop(shopLocation);
         player.sendMessage(ChatColor.GREEN + "PebbleShop removed.");
     }
