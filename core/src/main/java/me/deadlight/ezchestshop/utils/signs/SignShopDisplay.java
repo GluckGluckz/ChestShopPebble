@@ -6,12 +6,10 @@ import me.deadlight.ezchestshop.data.ShopContainer;
 import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.objects.ShopSettings;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
@@ -21,12 +19,10 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.block.data.Rotatable;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Level;
 
 /**
@@ -213,7 +209,7 @@ public final class SignShopDisplay {
         boolean admin = settings != null && settings.isAdminshop();
         boolean buyDisabled = settings != null && settings.isDbuy();
         boolean sellDisabled = settings != null && settings.isDsell();
-        String item = compactItemName(shop.getItem());
+        String item = compactItemName(shop.getShopItem());
         String buy = buyDisabled ? "OFF" : Config.currency + Utils.formatNumber(shop.getBuyPrice(), Utils.FormatType.CHAT);
         String sell = sellDisabled ? "OFF" : Config.currency + Utils.formatNumber(shop.getSellPrice(), Utils.FormatType.CHAT);
 
