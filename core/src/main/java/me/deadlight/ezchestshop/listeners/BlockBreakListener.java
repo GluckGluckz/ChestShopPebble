@@ -7,6 +7,7 @@ import me.deadlight.ezchestshop.EzChestShop;
 import me.deadlight.ezchestshop.utils.holograms.ShopHologram;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.Utils;
+import me.deadlight.ezchestshop.utils.signs.SignShopDisplay;
 import me.deadlight.ezchestshop.utils.worldguard.FlagRegistry;
 import me.deadlight.ezchestshop.utils.worldguard.WorldGuardUtils;
 import org.bukkit.Bukkit;
@@ -75,7 +76,6 @@ public class BlockBreakListener implements Listener {
                 loc = Utils.isPartOfTheChestShop(event.getBlock().getLocation()).getLocation();
             }
             if (ShopContainer.isShop(loc) || isPartOfShop) {
-                // Check if anyone is viewing the shop container's inventory directly
                 if (event.getBlock().getState() instanceof org.bukkit.inventory.InventoryHolder) {
                     org.bukkit.inventory.InventoryHolder containerState = (org.bukkit.inventory.InventoryHolder) event
                             .getBlock().getState();
@@ -106,6 +106,7 @@ public class BlockBreakListener implements Listener {
                         }
                     }
                 }
+                SignShopDisplay.remove(loc);
                 ShopHologram.hideForAll(loc);
                 ShopContainer.deleteShop(loc);
             }
@@ -157,11 +158,9 @@ public class BlockBreakListener implements Listener {
                 }
             }
 
-            // shop protection section
             if (Config.shopProtection) {
 
                 if (!event.getPlayer().hasPermission("ecs.admin")) {
-                    // check if player is owner of shop
                     EzShop shop = ShopContainer.getShop(loc);
                     if (!shop.getOwnerID().equals(event.getPlayer().getUniqueId())) {
                         event.setCancelled(true);
