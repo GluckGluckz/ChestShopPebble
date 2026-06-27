@@ -1,12 +1,13 @@
 package me.deadlight.ezchestshop.listeners;
 
+import me.deadlight.ezchestshop.EzChestShop;
 import me.deadlight.ezchestshop.data.LanguageManager;
 import me.deadlight.ezchestshop.data.ShopContainer;
-import me.deadlight.ezchestshop.EzChestShop;
 import me.deadlight.ezchestshop.guis.SettingsGUI;
-import me.deadlight.ezchestshop.utils.objects.ChatWaitObject;
 import me.deadlight.ezchestshop.utils.Utils;
+import me.deadlight.ezchestshop.utils.objects.ChatWaitObject;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
@@ -26,96 +27,164 @@ public class ChatListener implements Listener {
 
     public static HashMap<UUID, ChatWaitObject> chatmap = new HashMap<>();
     public static LanguageManager lm = new LanguageManager();
+
     public static void updateLM(LanguageManager languageManager) {
         ChatListener.lm = languageManager;
     }
 
-    @EventHandler
-    public void onAsyncChat(AsyncPlayerChatEvent event) {
-
-        Player player = event.getPlayer();
-        if (chatmap.containsKey(player.getUniqueId())) {
-            //waiting for the answer
-            event.setCancelled(true);
-            ChatWaitObject waitObject = chatmap.get(player.getUniqueId());
-            Block waitChest = waitObject.containerBlock;
-            if (waitChest == null) return;
-            String owneruuid = waitObject.dataContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
-            if (event.getMessage().equalsIgnoreCase(player.getName())) {
-                OfflinePlayer ofplayer = Bukkit.getOfflinePlayer(UUID.fromString(owneruuid));
-                if (ofplayer.getName().equalsIgnoreCase(player.getName())) {
-                    chatmap.remove(player.getUniqueId());
-                    player.sendMessage(lm.selfAdmin());
-                    return;
-                }
-
-            }
-
-            String type = chatmap.get(player.getUniqueId()).type;
-            Block chest = chatmap.get(player.getUniqueId()).containerBlock;
-            chatmap.put(player.getUniqueId(), new ChatWaitObject(event.getMessage(), type, chest, waitObject.dataContainer));
-            SettingsGUI guiInstance = new SettingsGUI();
-
-            if (checkIfPlayerExists(event.getMessage())) {
-
-                if (type.equalsIgnoreCase("add")) {
-                    chatmap.remove(player.getUniqueId());
-                    EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-                        addThePlayer(event.getMessage(), chest, player);
-                        guiInstance.showGUI(player, chest, false);
-                    }, 0);
-                } else {
-                    chatmap.remove(player.getUniqueId());
-                    EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-                        removeThePlayer(event.getMessage(), chest, player);
-                        guiInstance.showGUI(player, chest, false);
-                    }, 0);
-                }
-
-
-            } else {
-                player.sendMessage(lm.noPlayer());
-                chatmap.remove(player.getUniqueId());
-            }
-
-        }
-
+    public static void startPriceEditor(Player player, Block containerBlock) {
+        chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", containerBlock));
+        sendBuyPricePrompt(player);
     }
 
+    private static void sendBuyPricePrompt(Player player) {
+        player.sendMessage("");
+        player.sendMessage(Utils.colorify("&b&lUpdate Shop Prices &d━━━━━━━━━━━━"));
+        player.sendMessage(Utils.colorify("&eStep 1/2 &fType the &aBUY&f price in chat. &7Example: &f1000"));
+        player.sendMessage(Utils.colorify("&7Type &cCANCEL&7 to stop."));
+        player.sendMessage(Utils.colorify("&8Prompt: &bBuy price"));
+    }
+
+    private static void sendSellPricePrompt(Player player) {
+        player.sendMessage("");
+        player.sendMessage(Utils.colorify("&b&lUpdate Shop Prices &d━━━━━━━━━━━━"));
+        player.sendMessage(Utils.colorify("&eStep 2/2 &fType the &aSELL&f price in chat. &7Example: &f500"));
+        player.sendMessage(Utils.colorify("&7Type &cCANCEL&7 to stop."));
+        player.sendMessage(Utils.colorify("&8Prompt: &bSell price"));
+    }
+
+    @EventHandler
+    public void onAsyncChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        if (!chatmap.containsKey(player.getUniqueId())) return;
+
+        event.setCancelled(true);
+        ChatWaitObject waitObject = chatmap.get(player.getUniqueId());
+        Block waitChest = waitObject.containerBlock;
+        if (waitChest == null) {
+            chatmap.remove(player.getUniqueId());
+            return;
+        }
+
+        String type = waitObject.type;
+        if (type != null && (type.equalsIgnoreCase("price-buy") || type.equalsIgnoreCase("price-sell"))) {
+            handlePriceInput(event, player, waitObject, type);
+            return;
+        }
+
+        String owneruuid = waitObject.dataContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
+        if (event.getMessage().equalsIgnoreCase(player.getName())) {
+            OfflinePlayer ofplayer = Bukkit.getOfflinePlayer(UUID.fromString(owneruuid));
+            if (ofplayer.getName().equalsIgnoreCase(player.getName())) {
+                chatmap.remove(player.getUniqueId());
+                player.sendMessage(lm.selfAdmin());
+                return;
+            }
+        }
+
+        Block chest = waitObject.containerBlock;
+        chatmap.put(player.getUniqueId(), new ChatWaitObject(event.getMessage(), type, chest, waitObject.dataContainer));
+        SettingsGUI guiInstance = new SettingsGUI();
+
+        if (checkIfPlayerExists(event.getMessage())) {
+            if (type.equalsIgnoreCase("add")) {
+                chatmap.remove(player.getUniqueId());
+                EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
+                    addThePlayer(event.getMessage(), chest, player);
+                    guiInstance.showGUI(player, chest, false);
+                }, 0);
+            } else {
+                chatmap.remove(player.getUniqueId());
+                EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
+                    removeThePlayer(event.getMessage(), chest, player);
+                    guiInstance.showGUI(player, chest, false);
+                }, 0);
+            }
+        } else {
+            player.sendMessage(lm.noPlayer());
+            chatmap.remove(player.getUniqueId());
+        }
+    }
+
+    private void handlePriceInput(AsyncPlayerChatEvent event, Player player, ChatWaitObject waitObject, String type) {
+        String input = event.getMessage() == null ? "" : event.getMessage().trim();
+        if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("[cancel]")) {
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.RED + "Price update cancelled.");
+            return;
+        }
+
+        if (!Utils.isNumeric(input)) {
+            player.sendMessage(ChatColor.RED + "Please type a valid number, or type CANCEL to stop.");
+            return;
+        }
+
+        double amount;
+        try {
+            amount = Double.parseDouble(input);
+        } catch (NumberFormatException exception) {
+            player.sendMessage(ChatColor.RED + "Please type a valid number, or type CANCEL to stop.");
+            return;
+        }
+
+        if (amount < 0) {
+            player.sendMessage(lm.negativePrice());
+            return;
+        }
+
+        Block chest = waitObject.containerBlock;
+        if (type.equalsIgnoreCase("price-buy")) {
+            chatmap.put(player.getUniqueId(), new ChatWaitObject(String.valueOf(amount), "price-sell", chest, waitObject.dataContainer));
+            sendSellPricePrompt(player);
+            return;
+        }
+
+        double buyPrice;
+        try {
+            buyPrice = Double.parseDouble(waitObject.answer);
+        } catch (NumberFormatException exception) {
+            chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest, waitObject.dataContainer));
+            player.sendMessage(ChatColor.RED + "The saved buy price was invalid. Starting over.");
+            sendBuyPricePrompt(player);
+            return;
+        }
+
+        double sellPrice = amount;
+        EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
+            SettingsGUI settingsGUI = new SettingsGUI();
+            if (!settingsGUI.changePrices(chest, player, buyPrice, sellPrice)) {
+                chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest, ((TileState) chest.getState()).getPersistentDataContainer()));
+                player.sendMessage(ChatColor.YELLOW + "Let's try those prices again.");
+                sendBuyPricePrompt(player);
+                return;
+            }
+            player.sendMessage(lm.shopBuyPriceUpdated());
+            player.sendMessage(lm.shopSellPriceUpdated());
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(Utils.colorify("&aPebbleShop prices updated. Returning to settings..."));
+            settingsGUI.showGUI(player, chest, false);
+        }, 0);
+    }
 
     public boolean checkIfPlayerExists(String name) {
         Player player = Bukkit.getPlayer(name);
-
         if (player != null) {
-
             if (player.isOnline()) {
                 return true;
             } else {
                 OfflinePlayer thaPlayer = Bukkit.getOfflinePlayer(name);
-                if (thaPlayer.hasPlayedBefore()) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return thaPlayer.hasPlayedBefore();
             }
-
         } else {
             OfflinePlayer thaPlayer = Bukkit.getOfflinePlayer(name);
             return thaPlayer.hasPlayedBefore();
         }
-
-
-
     }
 
-
-
     public void addThePlayer(String answer, Block chest, Player player) {
-
         UUID answerUUID = Bukkit.getOfflinePlayer(answer).getUniqueId();
         List<UUID> admins = Utils.getAdminsList(((TileState)chest.getState()).getPersistentDataContainer());
         if (!admins.contains(answerUUID)) {
-
             admins.add(answerUUID);
             String adminsString = convertListUUIDtoString(admins);
             TileState state = ((TileState)chest.getState());
@@ -124,19 +193,15 @@ public class ChatListener implements Listener {
             state.update();
             ShopContainer.getShopSettings(chest.getLocation()).setAdmins(adminsString);
             player.sendMessage(lm.sucAdminAdded(answer));
-
-
         } else {
             player.sendMessage(lm.alreadyAdmin());
         }
     }
 
-
     public void removeThePlayer(String answer, Block chest, Player player) {
         UUID answerUUID = Bukkit.getOfflinePlayer(answer).getUniqueId();
         List<UUID> admins = Utils.getAdminsList(((TileState)chest.getState()).getPersistentDataContainer());
         if (admins.contains(answerUUID)) {
-
             TileState state = ((TileState)chest.getState());
             admins.remove(answerUUID);
             if (admins.size() == 0) {
@@ -152,15 +217,10 @@ public class ChatListener implements Listener {
             state.update();
             ShopContainer.getShopSettings(chest.getLocation()).setAdmins(adminsString);
             player.sendMessage(lm.sucAdminRemoved(answer));
-
         } else {
             player.sendMessage(lm.notInAdminList());
         }
     }
-
-
-
-
 
     public String convertListUUIDtoString(List<UUID> uuidList) {
         StringBuilder finalString = new StringBuilder();
@@ -170,24 +230,15 @@ public class ChatListener implements Listener {
         }
         for (UUID uuid : uuidList) {
             if (first) {
-
                 finalString.append("@").append(uuid.toString());
-
             } else {
                 first = true;
                 finalString = new StringBuilder(uuid.toString());
             }
         }
-        //if there is no admins, then set the string to none
         if (finalString.toString().equalsIgnoreCase("")) {
             finalString = new StringBuilder("none");
         }
         return finalString.toString();
     }
-
-
-
-
-
 }
-
