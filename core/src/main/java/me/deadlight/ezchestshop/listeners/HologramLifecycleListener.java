@@ -52,7 +52,7 @@ public final class HologramLifecycleListener implements Listener {
     }
 
     private boolean isReloadCommand(String raw) {
-        if (raw == null || raw.isBlank()) return false;
+        if (raw == null || raw.trim().isEmpty()) return false;
         String normalized = raw.trim().toLowerCase(Locale.ROOT);
         if (normalized.startsWith("/")) normalized = normalized.substring(1);
         String[] parts = normalized.split("\\s+");
