@@ -133,25 +133,36 @@ public class ChatListener implements Listener {
         }
 
         Block chest = waitObject.containerBlock;
+        if (type.equalsIgnoreCase("price-buy")) {
+            chatmap.put(player.getUniqueId(), new ChatWaitObject(String.valueOf(amount), "price-sell", chest, waitObject.dataContainer));
+            sendSellPricePrompt(player);
+            return;
+        }
+
+        double buyPrice;
+        try {
+            buyPrice = Double.parseDouble(waitObject.answer);
+        } catch (NumberFormatException exception) {
+            chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest, waitObject.dataContainer));
+            player.sendMessage(ChatColor.RED + "The saved buy price was invalid. Starting over.");
+            sendBuyPricePrompt(player);
+            return;
+        }
+
+        double sellPrice = amount;
         EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
             SettingsGUI settingsGUI = new SettingsGUI();
-            boolean isBuy = type.equalsIgnoreCase("price-buy");
-            if (!settingsGUI.changePrice(chest.getState(), isBuy, amount, player, chest)) {
+            if (!settingsGUI.changePrices(chest, player, buyPrice, sellPrice)) {
+                chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest, ((TileState) chest.getState()).getPersistentDataContainer()));
+                player.sendMessage(ChatColor.YELLOW + "Let's try those prices again.");
+                sendBuyPricePrompt(player);
                 return;
             }
-
-            ShopContainer.changePrice(chest.getState(), amount, isBuy);
-            player.sendMessage(isBuy ? lm.shopBuyPriceUpdated() : lm.shopSellPriceUpdated());
-
-            if (isBuy) {
-                PersistentDataContainer freshData = ((TileState) chest.getState()).getPersistentDataContainer();
-                chatmap.put(player.getUniqueId(), new ChatWaitObject(String.valueOf(amount), "price-sell", chest, freshData));
-                sendSellPricePrompt(player);
-            } else {
-                chatmap.remove(player.getUniqueId());
-                player.sendMessage(Utils.colorify("&aPebbleShop prices updated. Returning to settings..."));
-                settingsGUI.showGUI(player, chest, false);
-            }
+            player.sendMessage(lm.shopBuyPriceUpdated());
+            player.sendMessage(lm.shopSellPriceUpdated());
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(Utils.colorify("&aPebbleShop prices updated. Returning to settings..."));
+            settingsGUI.showGUI(player, chest, false);
         }, 0);
     }
 
