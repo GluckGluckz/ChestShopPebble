@@ -9,6 +9,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.ServerCommandEvent;
 
+import java.io.File;
 import java.util.Locale;
 
 /** Clears client-side hologram packets before PebbleShop reloads/rebuilds config state. */
@@ -17,14 +18,14 @@ public final class HologramLifecycleListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
         if (isReloadCommand(event.getMessage())) {
-            HologramCleanup.resetAll("player reload command");
+            prepareReload("player reload command");
         }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onServerCommand(ServerCommandEvent event) {
         if (isReloadCommand(event.getCommand())) {
-            HologramCleanup.resetAll("console reload command");
+            prepareReload("console reload command");
         }
     }
 
@@ -32,6 +33,21 @@ public final class HologramLifecycleListener implements Listener {
     public void onPluginDisable(PluginDisableEvent event) {
         if (event.getPlugin() == EzChestShop.getPlugin()) {
             HologramCleanup.resetAll("plugin disable");
+        }
+    }
+
+    private void prepareReload(String reason) {
+        HologramCleanup.resetAll(reason);
+        ensureConfigExists();
+    }
+
+    private void ensureConfigExists() {
+        EzChestShop plugin = EzChestShop.getPlugin();
+        if (plugin == null) return;
+        File config = new File(plugin.getDataFolder(), "config.yml");
+        if (!config.exists()) {
+            plugin.saveResource("config.yml", false);
+            plugin.getLogger().info("[PebbleShop] Missing config.yml was regenerated before reload.");
         }
     }
 
