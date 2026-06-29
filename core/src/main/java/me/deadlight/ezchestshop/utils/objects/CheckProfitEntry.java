@@ -33,7 +33,7 @@ public class CheckProfitEntry {
     }
 
     public CheckProfitEntry(String string) {
-        if (string != null && !string.equals("") && !string.contains("null")) {
+        if (string != null && !string.trim().isEmpty()) {
             try {
                 String[] split = string.split(itemInlineSpacer);
                 if (split.length < 8) return;
