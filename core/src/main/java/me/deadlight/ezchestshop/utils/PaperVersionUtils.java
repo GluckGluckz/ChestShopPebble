@@ -47,10 +47,16 @@ public class PaperVersionUtils extends VersionUtils {
 
     @Override
     String ItemToTextCompoundString(ItemStack itemStack) {
-        if (itemStack == null) {
+        if (itemStack == null || itemStack.getType() == null) {
             return "{}";
         }
-        return itemStack.serialize().toString();
+        try {
+            String key = itemStack.getType().getKey().toString();
+            int amount = Math.max(1, itemStack.getAmount());
+            return "{id:\"" + key + "\",Count:" + amount + "b}";
+        } catch (Throwable ignored) {
+            return "{}";
+        }
     }
 
     @Override
