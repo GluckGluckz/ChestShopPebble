@@ -24,33 +24,45 @@ public class CheckProfitEntry {
                             Double sellPrice, Double sellUnitPrice) {
         this.id = id;
         this.item = item;
-        this.buyAmount = buyAmount;
-        this.buyPrice = buyPrice;
-        this.buyUnitPrice = buyUnitPrice;
-        this.sellAmount = sellAmount;
-        this.sellPrice = sellPrice;
-        this.sellUnitPrice = sellUnitPrice;
+        this.buyAmount = safeInt(buyAmount);
+        this.buyPrice = safeDouble(buyPrice);
+        this.buyUnitPrice = safeDouble(buyUnitPrice);
+        this.sellAmount = safeInt(sellAmount);
+        this.sellPrice = safeDouble(sellPrice);
+        this.sellUnitPrice = safeDouble(sellUnitPrice);
     }
 
     public CheckProfitEntry(String string) {
         if (string != null && !string.equals("") && !string.contains("null")) {
-            String[] split = string.split(itemInlineSpacer);
-            id = split[0];
-            item = Utils.decodeItem(split[1]);
-            buyAmount = Integer.valueOf(split[2]);
-            buyPrice = Double.valueOf(split[3]);
-            buyUnitPrice = Double.valueOf(split[4]);
-            sellAmount = Integer.valueOf(split[5]);
-            sellPrice = Double.valueOf(split[6]);
-            sellUnitPrice = Double.valueOf(split[7]);
+            try {
+                String[] split = string.split(itemInlineSpacer);
+                if (split.length < 8) return;
+                id = split[0];
+                item = Utils.decodeItem(split[1]);
+                buyAmount = safeInt(parseInt(split[2]));
+                buyPrice = safeDouble(parseDouble(split[3]));
+                buyUnitPrice = safeDouble(parseDouble(split[4]));
+                sellAmount = safeInt(parseInt(split[5]));
+                sellPrice = safeDouble(parseDouble(split[6]));
+                sellUnitPrice = safeDouble(parseDouble(split[7]));
+            } catch (RuntimeException ignored) {
+                id = null;
+                item = null;
+                buyAmount = 0;
+                buyPrice = 0.0D;
+                buyUnitPrice = 0.0D;
+                sellAmount = 0;
+                sellPrice = 0.0D;
+                sellUnitPrice = 0.0D;
+            }
         }
 
     }
 
     public String toString() {
-        return id + itemInlineSpacer + Utils.encodeItem(item) + itemInlineSpacer + buyAmount + itemInlineSpacer
-                + buyPrice + itemInlineSpacer + buyUnitPrice + itemInlineSpacer + sellAmount + itemInlineSpacer
-                + sellPrice + itemInlineSpacer + sellUnitPrice;
+        return id + itemInlineSpacer + Utils.encodeItem(item) + itemInlineSpacer + getBuyAmount() + itemInlineSpacer
+                + getBuyPrice() + itemInlineSpacer + getBuyUnitPrice() + itemInlineSpacer + getSellAmount() + itemInlineSpacer
+                + getSellPrice() + itemInlineSpacer + getSellUnitPrice();
     }
 
     public String getId() {
@@ -70,42 +82,58 @@ public class CheckProfitEntry {
     }
 
     public Integer getBuyAmount() {
-        return buyAmount;
+        return safeInt(buyAmount);
     }
 
     public void setBuyAmount(Integer buyAmount) {
-        this.buyAmount = buyAmount;
+        this.buyAmount = safeInt(buyAmount);
     }
 
     public Double getBuyPrice() {
-        return buyPrice;
+        return safeDouble(buyPrice);
     }
 
     public void setBuyPrice(Double buyPrice) {
-        this.buyPrice = buyPrice;
+        this.buyPrice = safeDouble(buyPrice);
     }
 
     public Integer getSellAmount() {
-        return sellAmount;
+        return safeInt(sellAmount);
     }
 
     public void setSellAmount(Integer sellAmount) {
-        this.sellAmount = sellAmount;
+        this.sellAmount = safeInt(sellAmount);
     }
 
     public Double getSellPrice() {
-        return sellPrice;
+        return safeDouble(sellPrice);
     }
 
     public void setSellPrice(Double sellPrice) {
-        this.sellPrice = sellPrice;
+        this.sellPrice = safeDouble(sellPrice);
     }
 
     public Double getBuyUnitPrice() {
-        return buyUnitPrice;
+        return safeDouble(buyUnitPrice);
     }
 
     public Double getSellUnitPrice() {
-        return sellUnitPrice;
+        return safeDouble(sellUnitPrice);
+    }
+
+    private static Integer parseInt(String raw) {
+        return raw == null || raw.equalsIgnoreCase("null") || raw.isEmpty() ? 0 : Integer.valueOf(raw);
+    }
+
+    private static Double parseDouble(String raw) {
+        return raw == null || raw.equalsIgnoreCase("null") || raw.isEmpty() ? 0.0D : Double.valueOf(raw);
+    }
+
+    private static int safeInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private static double safeDouble(Double value) {
+        return value == null ? 0.0D : value;
     }
 }
