@@ -5,10 +5,16 @@ PebbleShop is Pebble Quest's player chest shop plugin. It is based on EzChestSho
 ## What it does
 
 - Lets players create market stalls by placing a sign on or next to a supported container and typing `[shop]` on the sign. `[sign]` is still accepted as a compatibility alias.
-- New sign-created shops start empty and safe: buying and selling are disabled until the owner chooses the shop item in the GUI and sets prices.
+- A shop can expose one independently priced listing per container slot: up to 27 listings in a normal chest, barrel, or shulker box and up to 54 in a double chest.
+- Exact item metadata is part of a listing's identity. Two books, tools, or custom items with different names, lore, enchantments, book data, or model data can have different buy and sell prices in the same shop.
+- Owners and shop staff add or replace listings from the cursor or held main-hand item, edit each listing's prices and availability, and open the shared stock inventory from the manager GUI.
+- Customers tap a listing to open a dedicated transaction screen with separate **Buy 1**, **Buy Stack**, **Sell 1**, and **Sell Stack** buttons.
+- Every multi-item GUI action uses a normal click/tap. Customer trading and staff management do not require right-click or shift-click, keeping the flow compatible with Geyser and Minecraft Bedrock Edition.
+- New sign-created shops start empty and safe: buying and selling remain unavailable until the owner adds listings and assigns prices.
+- Existing single-item shops migrate automatically into the multi-item listing format the first time they are opened.
 - Existing shops can be given a new physical shop sign the same way: place a sign on or next to the shop container and type `[shop]`.
 - Shop removal is sign-first too: owners/admins remove a shop by breaking its linked shop sign. `/pshop create` and `/pshop remove` are intentionally disabled for players.
-- Supports player shops, admin shops, buy/sell toggles, shop admins, shared income, transaction logs, custom hologram messages, and offline profit reports.
+- Supports player shops, admin shops, global and per-listing buy/sell toggles, shop admins, shared income, transaction logs, custom hologram messages, and offline profit reports.
 - Keeps the internal `/ecs` command key for inherited code compatibility while promoting Pebble aliases like `/pshop`, `/ps`, `/pebbleshop`, and `/pebblestore`.
 - Uses PebbleCore Cash as the economy source, so shop purchases, sales, and shared income use the same active-profile wallet as the rest of Pebble Quest.
 - Supports SQLite by default and MySQL for larger live servers.
@@ -46,7 +52,7 @@ PebbleShop is configured for Pebble Quest's Paper `26.1.2` target. Compatibility
 mvn -U clean package
 ```
 
-GitHub Actions builds the jar automatically on `main` pushes and uploads it as the `PebbleShop` artifact. The release workflow publishes versioned jars to the GitHub Releases tab and then bumps the repo to the next `-SNAPSHOT` version.
+GitHub Actions verifies every pull request, builds the jar automatically on `main` pushes, and uploads the compiled PebbleShop artifacts. The release workflow publishes versioned jars to the GitHub Releases tab and then bumps the repo to the next `-SNAPSHOT` version.
 
 ## Notes
 

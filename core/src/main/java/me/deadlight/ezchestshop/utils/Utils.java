@@ -65,19 +65,35 @@ public class Utils {
     public static DatabaseManager databaseManager;
 
     static {
-        try {
-            if (isFolia()) {
-                versionUtils = (VersionUtils) Class.forName("me.deadlight.ezchestshop.utils.v1_20_R3").newInstance();
-            } else {
-                String packageName = Utils.class.getPackage().getName();
-                String internalsName = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
-                versionUtils = (VersionUtils) Class.forName(packageName + "." + internalsName).newInstance();
-            }
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-                | ClassCastException exception) {
-            Bukkit.getLogger().log(Level.SEVERE,
-                    "EzChestShop could not find a valid implementation for this server version.");
+        versionUtils = loadVersionUtils();
+    }
+
+    private static VersionUtils loadVersionUtils() {
+        String packageName = Utils.class.getPackage().getName();
+        String bukkitVersion = Bukkit.getBukkitVersion();
+        String serverVersion = Bukkit.getVersion();
+        String serverPackageName = Bukkit.getServer().getClass().getPackage().getName();
+
+        if ((bukkitVersion != null && bukkitVersion.contains("26.1.2"))
+                || (serverVersion != null && serverVersion.contains("26.1.2"))) {
+            return new v26_1_2();
         }
+
+        String[] packageParts = serverPackageName.split("\\.");
+        if (packageParts.length > 3) {
+            try {
+                return (VersionUtils) Class.forName(packageName + "." + packageParts[3]).newInstance();
+            } catch (Throwable ignored) {
+                Bukkit.getLogger().log(Level.WARNING,
+                        "[PebbleShop] Could not load legacy version utilities for " + serverPackageName
+                                + "; using Paper-safe utilities instead.");
+            }
+        }
+
+        Bukkit.getLogger().log(Level.WARNING,
+                "[PebbleShop] Using Paper-safe version utilities for " + serverPackageName
+                        + " / " + bukkitVersion + ".");
+        return new PaperVersionUtils();
     }
 
     static boolean isFolia() {
@@ -245,20 +261,30 @@ public class Utils {
     }
 
     public static List<UUID> getAdminsList(PersistentDataContainer data) {
-
-        String adminsString = data.get(new NamespacedKey(EzChestShop.getPlugin(), "admins"), PersistentDataType.STRING);
-        // UUID@UUID@UUID
-        assert adminsString != null;
-        if (adminsString.equalsIgnoreCase("none")) {
-            return new ArrayList<>();
-        } else {
-            String[] stringUUIDS = adminsString.split("@");
-            List<UUID> finalList = new ArrayList<>();
-            for (String uuidInString : stringUUIDS) {
-                finalList.add(UUID.fromString(uuidInString));
-            }
-            return finalList;
+        List<UUID> admins = new ArrayList<>();
+        if (data == null) {
+            return admins;
         }
+        String adminsString = data.get(new NamespacedKey(EzChestShop.getPlugin(), "admins"),
+                PersistentDataType.STRING);
+        if (adminsString == null || adminsString.trim().isEmpty()
+                || adminsString.equalsIgnoreCase("none")) {
+            return admins;
+        }
+        for (String raw : adminsString.split("@")) {
+            if (raw == null || raw.trim().isEmpty()) {
+                continue;
+            }
+            try {
+                UUID uuid = UUID.fromString(raw.trim());
+                if (!admins.contains(uuid)) {
+                    admins.add(uuid);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Ignore one malformed legacy entry rather than breaking the shop.
+            }
+        }
+        return admins;
     }
 
     public static List<TransactionLogObject> getListOfTransactions(Location containerBlock) {
