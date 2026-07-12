@@ -22,7 +22,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.DoubleChestInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -39,8 +38,9 @@ import java.util.UUID;
 /**
  * Unified multi-item storefront and management interface.
  *
- * A listing represents one exact Bukkit item identity. This means two written
- * books, tools or custom items with different metadata are independently priced.
+ * Every visible action uses a normal click/tap. Customer trading opens a
+ * dedicated action menu instead of relying on right-click or shift-click, which
+ * keeps the complete flow usable through Geyser on Minecraft Bedrock Edition.
  */
 public class MultiItemShopGUI {
 
@@ -55,8 +55,7 @@ public class MultiItemShopGUI {
             return;
         }
 
-        TileState state = (TileState) containerBlock.getState();
-        PersistentDataContainer data = state.getPersistentDataContainer();
+        PersistentDataContainer data = data(containerBlock);
         List<ShopOffer> offers = ShopItemUtils.getOffers(containerBlock);
         OfflinePlayer owner = getOwner(data);
         boolean canManage = canManage(player, data);
@@ -96,6 +95,135 @@ public class MultiItemShopGUI {
         gui.open(player);
     }
 
+    /**
+     * Bedrock-safe customer transaction screen. A customer taps the listing once,
+     * then taps a dedicated Buy/Sell button. No action depends on right-click,
+     * shift-click, or click-type translation.
+     */
+    public void showTradeMenu(Player player, Block containerBlock, String offerId) {
+        if (!isValidShop(containerBlock)) {
+            player.sendMessage(Utils.colorify("&cThat shop is no longer available."));
+            player.closeInventory();
+            return;
+        }
+
+        PersistentDataContainer data = data(containerBlock);
+        ShopOffer offer = ShopItemUtils.getOffer(containerBlock, offerId);
+        if (offer == null) {
+            player.sendMessage(Utils.colorify("&cThat listing no longer exists."));
+            showGUI(player, containerBlock);
+            return;
+        }
+
+        OfflinePlayer owner = getOwner(data);
+        boolean adminShop = flag(data, "adminshop", false);
+        int stackAmount = Math.max(1, offer.getItem().getMaxStackSize());
+        String itemName = cleanItemName(offer.getItem());
+
+        Gui gui = new Gui(4, Utils.colorify("&0Trade &8• &d" + itemName));
+        gui.setDefaultClickAction(event -> event.setCancelled(true));
+        gui.getFiller().fill(filler());
+
+        ItemStack preview = listingDisplay(containerBlock, data, offer, false);
+        gui.setItem(1, 5, new GuiItem(preview, event -> event.setCancelled(true)));
+
+        String buyDisabledReason = buyDisabledReason(player, data, owner, offer, adminShop);
+        String sellDisabledReason = sellDisabledReason(player, data, owner, offer, adminShop);
+
+        ItemStack buyOne = tradeActionItem(
+                buyDisabledReason == null,
+                Material.EMERALD,
+                "&a&lBuy 1",
+                Arrays.asList(
+                        "&7Receive: &f1x " + itemName,
+                        "&7Total cost: &a$" + price(offer.getBuyPrice()),
+                        "",
+                        "&eTap to purchase."
+                ),
+                buyDisabledReason
+        );
+        gui.setItem(2, 2, new GuiItem(buyOne, event -> {
+            event.setCancelled(true);
+            handleBuy(player, containerBlock, data(containerBlock), owner, offer, 1, adminShop);
+        }));
+
+        ItemStack buyStack = tradeActionItem(
+                buyDisabledReason == null,
+                Material.EMERALD_BLOCK,
+                "&a&lBuy " + stackAmount,
+                Arrays.asList(
+                        "&7Receive: &f" + stackAmount + "x " + itemName,
+                        "&7Total cost: &a$" + price(offer.getBuyPrice() * stackAmount),
+                        "",
+                        "&eTap to purchase a stack."
+                ),
+                buyDisabledReason
+        );
+        gui.setItem(2, 4, new GuiItem(buyStack, event -> {
+            event.setCancelled(true);
+            handleBuy(player, containerBlock, data(containerBlock), owner, offer, stackAmount, adminShop);
+        }));
+
+        ItemStack sellOne = tradeActionItem(
+                sellDisabledReason == null,
+                Material.GOLD_INGOT,
+                "&6&lSell 1",
+                Arrays.asList(
+                        "&7Give: &f1x " + itemName,
+                        "&7You receive: &6$" + price(offer.getSellPrice()),
+                        "",
+                        "&eTap to sell."
+                ),
+                sellDisabledReason
+        );
+        gui.setItem(2, 6, new GuiItem(sellOne, event -> {
+            event.setCancelled(true);
+            handleSell(player, containerBlock, data(containerBlock), owner, offer, 1, adminShop);
+        }));
+
+        ItemStack sellStack = tradeActionItem(
+                sellDisabledReason == null,
+                Material.GOLD_BLOCK,
+                "&6&lSell " + stackAmount,
+                Arrays.asList(
+                        "&7Give: &f" + stackAmount + "x " + itemName,
+                        "&7You receive: &6$" + price(offer.getSellPrice() * stackAmount),
+                        "",
+                        "&eTap to sell a stack."
+                ),
+                sellDisabledReason
+        );
+        gui.setItem(2, 8, new GuiItem(sellStack, event -> {
+            event.setCancelled(true);
+            handleSell(player, containerBlock, data(containerBlock), owner, offer, stackAmount, adminShop);
+        }));
+
+        ItemStack help = namedItem(Material.WRITABLE_BOOK, "&b&lBedrock-Friendly Trading",
+                Arrays.asList(
+                        "&7Every action has its own button.",
+                        "&7Only a normal click or tap is required.",
+                        "",
+                        "&fNo right-click or shift-click controls."
+                ));
+        gui.setItem(3, 5, new GuiItem(help, event -> event.setCancelled(true)));
+
+        ItemStack back = namedItem(Material.ARROW, "&e&lBack to Shop",
+                Arrays.asList("&7Return to all listings."));
+        gui.setItem(4, 1, new GuiItem(back, event -> {
+            event.setCancelled(true);
+            showGUI(player, containerBlock);
+        }));
+
+        ItemStack refresh = namedItem(Material.CLOCK, "&b&lRefresh Listing",
+                Arrays.asList("&7Refresh prices and current stock."));
+        gui.setItem(4, 9, new GuiItem(refresh, event -> {
+            event.setCancelled(true);
+            showTradeMenu(player, containerBlock, offerId);
+        }));
+
+        gui.open(player);
+    }
+
     public void showOfferEditor(Player player, Block containerBlock, String offerId) {
         if (!isValidShop(containerBlock) || !canManage(player, data(containerBlock))) {
             player.closeInventory();
@@ -120,9 +248,9 @@ public class MultiItemShopGUI {
                 "&a&lEdit Buy & Sell Prices",
                 Arrays.asList(
                         "&7Buy: &a$" + price(offer.getBuyPrice()),
-                        "&7Sell: &c$" + price(offer.getSellPrice()),
+                        "&7Sell: &6$" + price(offer.getSellPrice()),
                         "",
-                        "&eClick to enter both prices in chat.",
+                        "&eTap to enter both prices in chat.",
                         "&7Works for Java and Bedrock players."
                 ));
         gui.setItem(2, 3, new GuiItem(editPrices, event -> {
@@ -137,7 +265,7 @@ public class MultiItemShopGUI {
                         "&7Customers " + (offer.isBuyingEnabled() ? "can" : "cannot") + " buy this item.",
                         "&7Price: &a$" + price(offer.getBuyPrice()),
                         "",
-                        "&eClick to toggle."
+                        "&eTap to toggle."
                 ));
         gui.setItem(2, 4, new GuiItem(buyToggle, event -> {
             event.setCancelled(true);
@@ -155,9 +283,9 @@ public class MultiItemShopGUI {
                 offer.isSellingEnabled() ? "&a&lSelling Enabled" : "&7&lSelling Disabled",
                 Arrays.asList(
                         "&7Customers " + (offer.isSellingEnabled() ? "can" : "cannot") + " sell this item.",
-                        "&7Price: &c$" + price(offer.getSellPrice()),
+                        "&7Price: &6$" + price(offer.getSellPrice()),
                         "",
-                        "&eClick to toggle."
+                        "&eTap to toggle."
                 ));
         gui.setItem(2, 6, new GuiItem(sellToggle, event -> {
             event.setCancelled(true);
@@ -173,20 +301,22 @@ public class MultiItemShopGUI {
         ItemStack replace = namedItem(Material.HOPPER,
                 "&b&lReplace Listing Item",
                 Arrays.asList(
-                        "&7Pick up the replacement item,",
-                        "&7then click this button.",
+                        "&7Put the replacement item on your cursor",
+                        "&7or hold it in your main hand.",
                         "",
-                        "&fThe existing prices are preserved.",
-                        "&7Exact duplicate listings are blocked."
+                        "&fExisting prices are preserved.",
+                        "&7Exact duplicate listings are blocked.",
+                        "",
+                        "&eTap to replace."
                 ));
         gui.setItem(2, 7, new GuiItem(replace, event -> {
             event.setCancelled(true);
-            ItemStack cursor = event.getCursor();
-            if (cursor == null || cursor.getType() == Material.AIR) {
-                player.sendMessage(Utils.colorify("&ePick up the replacement item on your cursor first."));
+            ItemStack selected = selectedItem(player, event.getCursor());
+            if (selected == null) {
+                player.sendMessage(Utils.colorify("&ePut the replacement item on your cursor or hold it in your main hand."));
                 return;
             }
-            if (!ShopItemUtils.replaceOfferItem(containerBlock, offerId, cursor)) {
+            if (!ShopItemUtils.replaceOfferItem(containerBlock, offerId, selected)) {
                 player.sendMessage(Utils.colorify("&cThat item is invalid or already has a listing."));
                 return;
             }
@@ -207,7 +337,7 @@ public class MultiItemShopGUI {
                         "&7Stops trading this exact item.",
                         "&7Stock remains inside the chest.",
                         "",
-                        "&cClick to continue."
+                        "&cTap to continue."
                 ));
         gui.setItem(4, 9, new GuiItem(remove, event -> {
             event.setCancelled(true);
@@ -259,7 +389,7 @@ public class MultiItemShopGUI {
         gui.setItem(2, 6, new GuiItem(toggleItem(
                 messages ? Material.LIME_DYE : Material.GRAY_DYE,
                 messages ? "&a&lTransaction Messages On" : "&7&lTransaction Messages Off",
-                "&7Controls owner transaction alerts.", "&eClick to toggle."), event -> {
+                "&7Controls owner transaction alerts.", "&eTap to toggle."), event -> {
             event.setCancelled(true);
             setGlobalFlag(containerBlock, "msgtoggle", !messages);
             ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
@@ -270,7 +400,7 @@ public class MultiItemShopGUI {
         gui.setItem(2, 8, new GuiItem(toggleItem(
                 shareIncome ? Material.LIME_DYE : Material.GRAY_DYE,
                 shareIncome ? "&a&lShared Income On" : "&7&lShared Income Off",
-                "&7Splits eligible income with shop staff.", "&eClick to toggle."), event -> {
+                "&7Splits eligible income with shop staff.", "&eTap to toggle."), event -> {
             event.setCancelled(true);
             if (adminShop) {
                 player.sendMessage(Utils.colorify("&cShared income is not used by admin shops."));
@@ -285,22 +415,15 @@ public class MultiItemShopGUI {
         if (!adminShop) {
             ItemStack staff = namedItem(Material.PLAYER_HEAD, "&b&lManage Shop Staff",
                     Arrays.asList(
-                            "&aLeft-click &7to add a player.",
-                            "&cRight-click &7to remove a player.",
+                            "&7Add and remove staff from separate buttons.",
+                            "&7Staff can manage listings and stock.",
                             "",
-                            "&7Staff can manage listings and stock."
+                            "&eTap to open staff controls.",
+                            "&8Bedrock-safe: no right-click required."
                     ));
             gui.setItem(3, 5, new GuiItem(staff, event -> {
                 event.setCancelled(true);
-                if (event.isRightClick()) {
-                    ChatListener.chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "remove", containerBlock));
-                    player.closeInventory();
-                    player.sendMessage(Utils.colorify("&eType the player name to remove, or type CANCEL."));
-                } else {
-                    ChatListener.chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "add", containerBlock));
-                    player.closeInventory();
-                    player.sendMessage(Utils.colorify("&eType the player name to add, or type CANCEL."));
-                }
+                showStaffManager(player, containerBlock);
             }));
         }
 
@@ -314,6 +437,61 @@ public class MultiItemShopGUI {
         gui.open(player);
     }
 
+    public void showStaffManager(Player player, Block containerBlock) {
+        if (!isValidShop(containerBlock) || !canManage(player, data(containerBlock))) {
+            player.closeInventory();
+            return;
+        }
+
+        PersistentDataContainer data = data(containerBlock);
+        if (flag(data, "adminshop", false)) {
+            player.sendMessage(Utils.colorify("&cAdmin shops do not use player shop staff."));
+            showSettings(player, containerBlock);
+            return;
+        }
+
+        Gui gui = new Gui(3, Utils.colorify("&0Manage Shop Staff"));
+        gui.setDefaultClickAction(event -> event.setCancelled(true));
+        gui.getFiller().fill(filler());
+
+        ItemStack current = namedItem(Material.BOOK, "&b&lCurrent Shop Staff", staffLore(data));
+        gui.setItem(1, 5, new GuiItem(current, event -> event.setCancelled(true)));
+
+        ItemStack add = namedItem(Material.LIME_CONCRETE, "&a&lAdd Staff Member",
+                Arrays.asList(
+                        "&7Enter a player's name in chat.",
+                        "&7They will be able to manage listings",
+                        "&7and open the shared shop storage.",
+                        "",
+                        "&eTap to add a player."
+                ));
+        gui.setItem(2, 3, new GuiItem(add, event -> {
+            event.setCancelled(true);
+            beginStaffUpdate(player, containerBlock, "add");
+        }));
+
+        ItemStack remove = namedItem(Material.RED_CONCRETE, "&c&lRemove Staff Member",
+                Arrays.asList(
+                        "&7Enter a player's name in chat.",
+                        "&7Their shop-management access is removed.",
+                        "",
+                        "&eTap to remove a player."
+                ));
+        gui.setItem(2, 7, new GuiItem(remove, event -> {
+            event.setCancelled(true);
+            beginStaffUpdate(player, containerBlock, "remove");
+        }));
+
+        ItemStack back = namedItem(Material.ARROW, "&e&lBack to Settings",
+                Arrays.asList("&7Return to shop settings."));
+        gui.setItem(3, 1, new GuiItem(back, event -> {
+            event.setCancelled(true);
+            showSettings(player, containerBlock);
+        }));
+
+        gui.open(player);
+    }
+
     private GuiItem createListingItem(Player player, Block containerBlock,
                                       PersistentDataContainer data, OfflinePlayer owner, ShopOffer offer,
                                       boolean canManage, boolean adminShop) {
@@ -322,33 +500,17 @@ public class MultiItemShopGUI {
             event.setCancelled(true);
             if (canManage) {
                 showOfferEditor(player, containerBlock, offer.getId());
-                return;
-            }
-
-            ClickType click = event.getClick();
-            int amount = (click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT)
-                    ? offer.getItem().getMaxStackSize() : 1;
-
-            if (click == ClickType.LEFT || click == ClickType.SHIFT_LEFT) {
-                handleBuy(player, containerBlock, data, owner, offer, amount, adminShop);
-            } else if (click == ClickType.RIGHT || click == ClickType.SHIFT_RIGHT) {
-                handleSell(player, containerBlock, data, owner, offer, amount, adminShop);
+            } else {
+                showTradeMenu(player, containerBlock, offer.getId());
             }
         });
     }
 
     private void handleBuy(Player player, Block containerBlock, PersistentDataContainer data,
                            OfflinePlayer owner, ShopOffer offer, int amount, boolean adminShop) {
-        if (flag(data, "dbuy", false)) {
-            player.sendMessage(Utils.colorify("&cBuying is disabled for this shop."));
-            return;
-        }
-        if (!offer.isBuyingEnabled() || offer.getBuyPrice() <= 0D) {
-            player.sendMessage(Utils.colorify("&cBuying is disabled for this listing."));
-            return;
-        }
-        if (!adminShop && owner != null && owner.getUniqueId().equals(player.getUniqueId())) {
-            player.sendMessage(Utils.colorify("&cYou cannot buy from your own shop."));
+        String disabledReason = buyDisabledReason(player, data, owner, offer, adminShop);
+        if (disabledReason != null) {
+            player.sendMessage(Utils.colorify("&c" + disabledReason));
             return;
         }
 
@@ -358,21 +520,14 @@ public class MultiItemShopGUI {
         } else if (owner != null) {
             ShopContainer.buyItem(containerBlock, total, amount, offer.getItem(), player, owner, data);
         }
-        refreshLater(player, containerBlock);
+        refreshTradeLater(player, containerBlock, offer.getId());
     }
 
     private void handleSell(Player player, Block containerBlock, PersistentDataContainer data,
                             OfflinePlayer owner, ShopOffer offer, int amount, boolean adminShop) {
-        if (flag(data, "dsell", false)) {
-            player.sendMessage(Utils.colorify("&cSelling is disabled for this shop."));
-            return;
-        }
-        if (!offer.isSellingEnabled() || offer.getSellPrice() <= 0D) {
-            player.sendMessage(Utils.colorify("&cSelling is disabled for this listing."));
-            return;
-        }
-        if (!adminShop && owner != null && owner.getUniqueId().equals(player.getUniqueId())) {
-            player.sendMessage(Utils.colorify("&cYou cannot sell to your own shop."));
+        String disabledReason = sellDisabledReason(player, data, owner, offer, adminShop);
+        if (disabledReason != null) {
+            player.sendMessage(Utils.colorify("&c" + disabledReason));
             return;
         }
 
@@ -382,7 +537,41 @@ public class MultiItemShopGUI {
         } else if (owner != null) {
             ShopContainer.sellItem(containerBlock, total, amount, offer.getItem(), player, owner, data);
         }
-        refreshLater(player, containerBlock);
+        refreshTradeLater(player, containerBlock, offer.getId());
+    }
+
+    private String buyDisabledReason(Player player, PersistentDataContainer data, OfflinePlayer owner,
+                                     ShopOffer offer, boolean adminShop) {
+        if (flag(data, "dbuy", false)) {
+            return "Buying is disabled for this shop.";
+        }
+        if (!offer.isBuyingEnabled() || offer.getBuyPrice() <= 0D) {
+            return "Buying is disabled for this listing.";
+        }
+        if (!adminShop && owner == null) {
+            return "The shop owner could not be resolved.";
+        }
+        if (!adminShop && owner.getUniqueId().equals(player.getUniqueId())) {
+            return "You cannot buy from your own shop.";
+        }
+        return null;
+    }
+
+    private String sellDisabledReason(Player player, PersistentDataContainer data, OfflinePlayer owner,
+                                      ShopOffer offer, boolean adminShop) {
+        if (flag(data, "dsell", false)) {
+            return "Selling is disabled for this shop.";
+        }
+        if (!offer.isSellingEnabled() || offer.getSellPrice() <= 0D) {
+            return "Selling is disabled for this listing.";
+        }
+        if (!adminShop && owner == null) {
+            return "The shop owner could not be resolved.";
+        }
+        if (!adminShop && owner.getUniqueId().equals(player.getUniqueId())) {
+            return "You cannot sell to your own shop.";
+        }
+        return null;
     }
 
     private ItemStack listingDisplay(Block containerBlock, PersistentDataContainer data,
@@ -400,24 +589,24 @@ public class MultiItemShopGUI {
 
         boolean globalBuyDisabled = flag(data, "dbuy", false);
         boolean globalSellDisabled = flag(data, "dsell", false);
+        boolean adminShop = flag(data, "adminshop", false);
         int stock = countSimilar(Utils.getBlockInventory(containerBlock), offer.getItem());
 
         lore.add(Utils.colorify("&8&m--------------------"));
         lore.add(Utils.colorify("&aBuy: " + ((!globalBuyDisabled && offer.isBuyingEnabled())
                 ? "&f$" + price(offer.getBuyPrice()) + " each" : "&cDisabled")));
-        lore.add(Utils.colorify("&cSell: " + ((!globalSellDisabled && offer.isSellingEnabled())
+        lore.add(Utils.colorify("&6Sell: " + ((!globalSellDisabled && offer.isSellingEnabled())
                 ? "&f$" + price(offer.getSellPrice()) + " each" : "&cDisabled")));
-        lore.add(Utils.colorify("&bStock: &f" + stock));
+        lore.add(Utils.colorify("&bStock: &f" + (adminShop ? "Unlimited" : stock)));
         lore.add("");
 
         if (managementView) {
-            lore.add(Utils.colorify("&eClick &7to edit this listing."));
+            lore.add(Utils.colorify("&eTap &7to manage this listing."));
             lore.add(Utils.colorify("&7Prices and toggles are item-specific."));
         } else {
-            lore.add(Utils.colorify("&aLeft-click &7Buy 1"));
-            lore.add(Utils.colorify("&aShift-left &7Buy a stack"));
-            lore.add(Utils.colorify("&cRight-click &7Sell 1"));
-            lore.add(Utils.colorify("&cShift-right &7Sell a stack"));
+            lore.add(Utils.colorify("&eTap &7to open the trade menu."));
+            lore.add(Utils.colorify("&7Choose Buy or Sell from separate buttons."));
+            lore.add(Utils.colorify("&8No right-click required."));
         }
 
         meta.setLore(lore);
@@ -429,7 +618,9 @@ public class MultiItemShopGUI {
         ItemStack settings = namedItem(Material.COMPARATOR, "&b&lShop Settings",
                 Arrays.asList(
                         "&7Global buy/sell switches, alerts,",
-                        "&7shared income and shop staff."
+                        "&7shared income and shop staff.",
+                        "",
+                        "&eTap to open settings."
                 ));
         gui.setItem(6, 3, new GuiItem(settings, event -> {
             event.setCancelled(true);
@@ -438,29 +629,31 @@ public class MultiItemShopGUI {
 
         ItemStack add = namedItem(Material.EMERALD_BLOCK, "&a&lAdd Listing",
                 Arrays.asList(
-                        "&7Pick up an item on your cursor,",
-                        "&7then click this button.",
+                        "&7Put an item on your cursor or",
+                        "&7hold it in your main hand.",
                         "",
                         "&fEach exact item can have its own prices.",
                         "&7Listings: &f" + ShopItemUtils.getOffers(containerBlock).size()
-                                + "&7/&f" + ShopItemUtils.getOfferCapacity(containerBlock)
+                                + "&7/&f" + ShopItemUtils.getOfferCapacity(containerBlock),
+                        "",
+                        "&eTap to add the item."
                 ));
         gui.setItem(6, 7, new GuiItem(add, event -> {
             event.setCancelled(true);
-            ItemStack cursor = event.getCursor();
-            if (cursor == null || cursor.getType() == Material.AIR) {
-                player.sendMessage(Utils.colorify("&ePick up the item you want to list, then click Add Listing."));
+            ItemStack selected = selectedItem(player, event.getCursor());
+            if (selected == null) {
+                player.sendMessage(Utils.colorify("&ePut the item on your cursor or hold it in your main hand."));
                 return;
             }
             if (ShopItemUtils.getOffers(containerBlock).size() >= ShopItemUtils.getOfferCapacity(containerBlock)) {
                 player.sendMessage(Utils.colorify("&cThis shop already has as many listings as its container can hold."));
                 return;
             }
-            if (ShopItemUtils.findMatchingOffer(containerBlock, cursor) != null) {
+            if (ShopItemUtils.findMatchingOffer(containerBlock, selected) != null) {
                 player.sendMessage(Utils.colorify("&cThat exact item already has a listing."));
                 return;
             }
-            ShopOffer offer = ShopItemUtils.addOffer(containerBlock, cursor);
+            ShopOffer offer = ShopItemUtils.addOffer(containerBlock, selected);
             if (offer == null) {
                 player.sendMessage(Utils.colorify("&cPebbleShop could not add that item."));
                 return;
@@ -477,11 +670,17 @@ public class MultiItemShopGUI {
         ItemStack storage = namedItem(Material.CHEST, "&6&lOpen Shop Storage",
                 Arrays.asList(
                         "&7Open the real container inventory.",
-                        "&7All listed item types can be stocked together."
+                        "&7All listed item types can be stocked together.",
+                        "",
+                        "&eTap to open storage."
                 ));
         gui.setItem(row, column, new GuiItem(storage, event -> {
             event.setCancelled(true);
             Inventory inventory = Utils.getBlockInventory(containerBlock);
+            if (inventory == null) {
+                player.sendMessage(Utils.colorify("&cThe shop storage could not be opened."));
+                return;
+            }
             if (inventory instanceof DoubleChestInventory) {
                 DoubleChest doubleChest = (DoubleChest) inventory.getHolder();
                 if (doubleChest != null) inventory = doubleChest.getInventory();
@@ -493,14 +692,14 @@ public class MultiItemShopGUI {
 
     private void addNavigation(PaginatedGui gui) {
         ItemStack previous = namedItem(Material.ARROW, "&ePrevious Page",
-                Arrays.asList("&7View earlier listings."));
+                Arrays.asList("&7View earlier listings.", "", "&eTap to navigate."));
         gui.setItem(6, 1, new GuiItem(previous, event -> {
             event.setCancelled(true);
             gui.previous();
         }));
 
         ItemStack next = namedItem(Material.ARROW, "&eNext Page",
-                Arrays.asList("&7View more listings."));
+                Arrays.asList("&7View more listings.", "", "&eTap to navigate."));
         gui.setItem(6, 9, new GuiItem(next, event -> {
             event.setCancelled(true);
             gui.next();
@@ -514,7 +713,10 @@ public class MultiItemShopGUI {
                         "&7Every listing has independent prices.",
                         "&7Custom names and metadata stay distinct.",
                         "",
-                        canManage ? "&fClick a listing to manage it." : "&fUse left/right click to trade."
+                        canManage
+                                ? "&fTap a listing to manage it."
+                                : "&fTap a listing to choose Buy or Sell.",
+                        "&8All controls work with normal taps."
                 ));
         gui.setItem(6, 5, new GuiItem(info, event -> event.setCancelled(true)));
     }
@@ -535,7 +737,9 @@ public class MultiItemShopGUI {
                         "&7Remove the listing for:",
                         "&f" + cleanItemName(offer.getItem()),
                         "",
-                        "&7Items already in storage are not deleted."
+                        "&7Items already in storage are not deleted.",
+                        "",
+                        "&eTap to confirm."
                 ));
         gui.setItem(2, 4, new GuiItem(confirm, event -> {
             event.setCancelled(true);
@@ -547,7 +751,7 @@ public class MultiItemShopGUI {
         }));
 
         ItemStack cancel = namedItem(Material.RED_CONCRETE, "&c&lCancel",
-                Arrays.asList("&7Keep this listing."));
+                Arrays.asList("&7Keep this listing.", "", "&eTap to return."));
         gui.setItem(2, 6, new GuiItem(cancel, event -> {
             event.setCancelled(true);
             showOfferEditor(player, containerBlock, offerId);
@@ -556,10 +760,79 @@ public class MultiItemShopGUI {
         gui.open(player);
     }
 
-    private void refreshLater(Player player, Block containerBlock) {
+    private void beginStaffUpdate(Player player, Block containerBlock, String type) {
+        ChatListener.chatmap.put(player.getUniqueId(), new ChatWaitObject("none", type, containerBlock));
+        player.closeInventory();
+        if ("add".equalsIgnoreCase(type)) {
+            player.sendMessage(Utils.colorify("&b&lAdd Shop Staff &d━━━━━━━━━━━━"));
+            player.sendMessage(Utils.colorify("&fType the player's exact name in chat."));
+        } else {
+            player.sendMessage(Utils.colorify("&c&lRemove Shop Staff &d━━━━━━━━━━━━"));
+            player.sendMessage(Utils.colorify("&fType the player's exact name in chat."));
+        }
+        player.sendMessage(Utils.colorify("&7Type &cCANCEL &7to return without changing anything."));
+    }
+
+    private List<String> staffLore(PersistentDataContainer data) {
+        List<UUID> staff = Utils.getAdminsList(data);
+        List<String> lore = new ArrayList<>();
+        if (staff.isEmpty()) {
+            lore.add(Utils.colorify("&7No staff members are assigned."));
+        } else {
+            lore.add(Utils.colorify("&7Assigned staff:"));
+            for (UUID uuid : staff) {
+                OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+                String name = offlinePlayer.getName();
+                lore.add(Utils.colorify("&f• &b" + (name == null ? uuid.toString() : name)));
+            }
+        }
+        lore.add("");
+        lore.add(Utils.colorify("&7Use the separate Add and Remove buttons below."));
+        return lore;
+    }
+
+    private ItemStack selectedItem(Player player, ItemStack cursor) {
+        if (cursor != null && cursor.getType() != Material.AIR) {
+            ItemStack selected = cursor.clone();
+            selected.setAmount(1);
+            return selected;
+        }
+
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        if (mainHand != null && mainHand.getType() != Material.AIR) {
+            ItemStack selected = mainHand.clone();
+            selected.setAmount(1);
+            return selected;
+        }
+
+        return null;
+    }
+
+    private ItemStack tradeActionItem(boolean available, Material material, String name,
+                                      List<String> lore, String disabledReason) {
+        if (available) {
+            return namedItem(material, name, lore);
+        }
+
+        List<String> disabledLore = new ArrayList<>();
+        disabledLore.add("&7This action is currently unavailable.");
+        if (disabledReason != null && !disabledReason.trim().isEmpty()) {
+            disabledLore.add("&c" + disabledReason);
+        }
+        disabledLore.add("");
+        disabledLore.add("&7Tap for details.");
+        return namedItem(Material.BARRIER, "&c&lUnavailable", disabledLore);
+    }
+
+    private void refreshTradeLater(Player player, Block containerBlock, String offerId) {
         EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-            if (player.isOnline() && isValidShop(containerBlock)) {
+            if (!player.isOnline() || !isValidShop(containerBlock)) {
+                return;
+            }
+            if (ShopItemUtils.getOffer(containerBlock, offerId) == null) {
                 showGUI(player, containerBlock);
+            } else {
+                showTradeMenu(player, containerBlock, offerId);
             }
         }, 1);
     }
@@ -615,7 +888,7 @@ public class MultiItemShopGUI {
         if (inventory == null || target == null) return 0;
         int amount = 0;
         for (ItemStack stack : inventory.getStorageContents()) {
-            if (stack != null && stack.isSimilar(target)) {
+            if (stack != null && Utils.isSimilar(stack, target)) {
                 amount += stack.getAmount();
             }
         }
@@ -639,7 +912,7 @@ public class MultiItemShopGUI {
     }
 
     private ItemStack toggleItem(Material material, String name, String lineOne, String lineTwo) {
-        return namedItem(material, name, Arrays.asList(lineOne, lineTwo, "", "&eClick to toggle."));
+        return namedItem(material, name, Arrays.asList(lineOne, lineTwo, "", "&eTap to toggle."));
     }
 
     private ItemStack namedItem(Material material, String name, List<String> lore) {
