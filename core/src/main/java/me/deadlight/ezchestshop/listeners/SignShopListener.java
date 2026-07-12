@@ -6,10 +6,7 @@ import me.deadlight.ezchestshop.data.Config;
 import me.deadlight.ezchestshop.data.LanguageManager;
 import me.deadlight.ezchestshop.data.ShopCommandManager;
 import me.deadlight.ezchestshop.data.ShopContainer;
-import me.deadlight.ezchestshop.guis.AdminShopGUI;
-import me.deadlight.ezchestshop.guis.NonOwnerShopGUI;
-import me.deadlight.ezchestshop.guis.OwnerShopGUI;
-import me.deadlight.ezchestshop.guis.ServerShopGUI;
+import me.deadlight.ezchestshop.guis.MultiItemShopGUI;
 import me.deadlight.ezchestshop.utils.ShopItemUtils;
 import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
@@ -54,9 +51,7 @@ import java.util.UUID;
 public final class SignShopListener implements Listener {
 
     private final LanguageManager lm = new LanguageManager();
-    private final NonOwnerShopGUI nonOwnerShopGUI = new NonOwnerShopGUI();
-    private final OwnerShopGUI ownerShopGUI = new OwnerShopGUI();
-    private final AdminShopGUI adminShopGUI = new AdminShopGUI();
+    private final MultiItemShopGUI shopGUI = new MultiItemShopGUI();
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShopSignCreate(SignChangeEvent event) {
@@ -406,7 +401,7 @@ public final class SignShopListener implements Listener {
             if (EzChestShop.worldguard && !WorldGuardUtils.queryStateFlag(FlagRegistry.USE_ADMIN_SHOP, player) && !player.isOp()) return;
             Config.shopCommandManager.executeCommands(player, shopBlock.getLocation(), ShopCommandManager.ShopType.ADMINSHOP,
                     ShopCommandManager.ShopAction.OPEN, null);
-            new ServerShopGUI().showGUI(player, data, shopBlock);
+            shopGUI.showGUI(player, shopBlock);
             return;
         }
         boolean isAdmin = isAdmin(data, player.getUniqueId().toString());
@@ -416,13 +411,7 @@ public final class SignShopListener implements Listener {
         }
         Config.shopCommandManager.executeCommands(player, shopBlock.getLocation(), ShopCommandManager.ShopType.SHOP,
                 ShopCommandManager.ShopAction.OPEN, null);
-        if (player.hasPermission("ecs.admin") || player.hasPermission("ecs.admin.view")) {
-            adminShopGUI.showGUI(player, data, shopBlock);
-        } else if (player.getUniqueId().toString().equalsIgnoreCase(ownerUuid) || isAdmin) {
-            ownerShopGUI.showGUI(player, data, shopBlock, isAdmin);
-        } else {
-            nonOwnerShopGUI.showGUI(player, data, shopBlock);
-        }
+        shopGUI.showGUI(player, shopBlock);
     }
 
     private Block resolveDoubleChestShopBlock(Block block) {
