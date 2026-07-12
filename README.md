@@ -7,8 +7,9 @@ PebbleShop is Pebble Quest's player chest shop plugin. It is based on EzChestSho
 - Lets players create market stalls by placing a sign on or next to a supported container and typing `[shop]` on the sign. `[sign]` is still accepted as a compatibility alias.
 - A shop can expose one independently priced listing per container slot: up to 27 listings in a normal chest, barrel, or shulker box and up to 54 in a double chest.
 - Exact item metadata is part of a listing's identity. Two books, tools, or custom items with different names, lore, enchantments, book data, or model data can have different buy and sell prices in the same shop.
-- Owners and shop staff add listings from the cursor, edit each listing's prices and buy/sell availability, replace listing items without losing prices, and open the shared stock inventory from the manager GUI.
-- Customers use left-click to buy one, shift-left to buy a stack, right-click to sell one, and shift-right to sell a stack.
+- Owners and shop staff add or replace listings from the cursor or held main-hand item, edit each listing's prices and availability, and open the shared stock inventory from the manager GUI.
+- Customers tap a listing to open a dedicated transaction screen with separate **Buy 1**, **Buy Stack**, **Sell 1**, and **Sell Stack** buttons.
+- Every multi-item GUI action uses a normal click/tap. Customer trading and staff management do not require right-click or shift-click, keeping the flow compatible with Geyser and Minecraft Bedrock Edition.
 - New sign-created shops start empty and safe: buying and selling remain unavailable until the owner adds listings and assigns prices.
 - Existing single-item shops migrate automatically into the multi-item listing format the first time they are opened.
 - Existing shops can be given a new physical shop sign the same way: place a sign on or next to the shop container and type `[shop]`.
@@ -51,7 +52,7 @@ PebbleShop is configured for Pebble Quest's Paper `26.1.2` target. Compatibility
 mvn -U clean package
 ```
 
-GitHub Actions verifies pull requests, builds the jar automatically on `main` pushes, and uploads the compiled PebbleShop artifacts. The release workflow publishes versioned jars to the GitHub Releases tab and then bumps the repo to the next `-SNAPSHOT` version.
+GitHub Actions verifies every pull request, builds the jar automatically on `main` pushes, and uploads the compiled PebbleShop artifacts. The release workflow publishes versioned jars to the GitHub Releases tab and then bumps the repo to the next `-SNAPSHOT` version.
 
 ## Notes
 
