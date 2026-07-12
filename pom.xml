@@ -6,7 +6,7 @@
 
     <groupId>com.gluckz.pebbleshop</groupId>
     <artifactId>PebbleShop-parent</artifactId>
-    <version>1.0.18-SNAPSHOT</version>
+    <version>1.0.18</version>
     <packaging>pom</packaging>
 
     <name>PebbleShop-parent</name>
