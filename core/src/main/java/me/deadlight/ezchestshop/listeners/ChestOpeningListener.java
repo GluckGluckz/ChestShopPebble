@@ -37,7 +37,7 @@ public class ChestOpeningListener implements Listener {
 
     private final MultiItemShopGUI shopGUI = new MultiItemShopGUI();
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onChestOpening(PlayerInteractEvent event) {
         if (event.getClickedBlock() == null || event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;

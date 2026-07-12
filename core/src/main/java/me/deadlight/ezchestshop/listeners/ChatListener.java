@@ -23,13 +23,14 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ChatListener implements Listener {
 
-    public static HashMap<UUID, ChatWaitObject> chatmap = new HashMap<>();
+    public static final Map<UUID, ChatWaitObject> chatmap = new ConcurrentHashMap<>();
     public static LanguageManager lm = new LanguageManager();
 
     public static void updateLM(LanguageManager languageManager) {
@@ -57,6 +58,10 @@ public class ChatListener implements Listener {
     }
 
     public static void startOfferPriceEditor(Player player, Block containerBlock, String offerId) {
+        if (!canManageListings(player, containerBlock)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to edit this shop."));
+            return;
+        }
         ShopOffer offer = ShopItemUtils.getOffer(containerBlock, offerId);
         if (offer == null) {
             player.sendMessage(Utils.colorify("&cThat listing no longer exists."));
@@ -105,105 +110,98 @@ public class ChatListener implements Listener {
     @EventHandler
     public void onAsyncChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        if (!chatmap.containsKey(player.getUniqueId())) {
+        ChatWaitObject waitObject = chatmap.remove(player.getUniqueId());
+        if (waitObject == null) {
             return;
         }
 
         event.setCancelled(true);
-        ChatWaitObject waitObject = chatmap.get(player.getUniqueId());
-        Block waitChest = waitObject.containerBlock;
-        if (waitChest == null) {
-            chatmap.remove(player.getUniqueId());
+        String input = event.getMessage() == null ? "" : event.getMessage().trim();
+        EzChestShop.getScheduler().scheduleSyncDelayedTask(
+                () -> processChatInput(player, waitObject, input), 0);
+    }
+
+    private void processChatInput(Player player, ChatWaitObject waitObject, String input) {
+        if (!player.isOnline() || waitObject == null || waitObject.containerBlock == null
+                || !(waitObject.containerBlock.getState() instanceof TileState)) {
             return;
         }
 
+        Block chest = waitObject.containerBlock;
         String type = waitObject.type == null ? "" : waitObject.type;
         if (type.startsWith("offer-price-buy:") || type.startsWith("offer-price-sell:")) {
-            handleOfferPriceInput(event, player, waitObject, type);
+            handleOfferPriceInput(player, waitObject, type, input);
             return;
         }
         if (type.equalsIgnoreCase("price-buy") || type.equalsIgnoreCase("price-sell")) {
-            handleLegacyPriceInput(event, player, waitObject, type);
+            handleLegacyPriceInput(player, waitObject, type, input);
             return;
         }
 
-        String message = event.getMessage() == null ? "" : event.getMessage().trim();
-        if (message.equalsIgnoreCase("cancel") || message.equalsIgnoreCase("[cancel]")) {
-            chatmap.remove(player.getUniqueId());
+        if (!canManageSettings(player, chest)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to manage shop staff."));
+            return;
+        }
+        if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("[cancel]")) {
             player.sendMessage(ChatColor.RED + "Shop staff update cancelled.");
-            EzChestShop.getScheduler().scheduleSyncDelayedTask(
-                    () -> new MultiItemShopGUI().showSettings(player, waitChest), 0);
+            new MultiItemShopGUI().showStaffManager(player, chest);
             return;
         }
-
-        String owneruuid = waitObject.dataContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
-        if (message.equalsIgnoreCase(player.getName()) && owneruuid != null) {
-            OfflinePlayer owner = Bukkit.getOfflinePlayer(UUID.fromString(owneruuid));
-            if (owner.getName() != null && owner.getName().equalsIgnoreCase(player.getName())) {
-                chatmap.remove(player.getUniqueId());
-                player.sendMessage(lm.selfAdmin());
-                return;
-            }
+        if (!type.equalsIgnoreCase("add") && !type.equalsIgnoreCase("remove")) {
+            return;
         }
-
-        Block chest = waitObject.containerBlock;
-        chatmap.put(player.getUniqueId(), new ChatWaitObject(message, type, chest, waitObject.dataContainer));
-
-        if (checkIfPlayerExists(message)) {
-            chatmap.remove(player.getUniqueId());
-            EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-                if (type.equalsIgnoreCase("add")) {
-                    addThePlayer(message, chest, player);
-                } else {
-                    removeThePlayer(message, chest, player);
-                }
-                new MultiItemShopGUI().showSettings(player, chest);
-            }, 0);
-        } else {
+        if (!checkIfPlayerExists(input)) {
             player.sendMessage(lm.noPlayer());
-            chatmap.remove(player.getUniqueId());
+            new MultiItemShopGUI().showStaffManager(player, chest);
+            return;
         }
+        if (type.equalsIgnoreCase("add")) {
+            addThePlayer(input, chest, player);
+        } else {
+            removeThePlayer(input, chest, player);
+        }
+        new MultiItemShopGUI().showStaffManager(player, chest);
     }
 
-    private void handleOfferPriceInput(AsyncPlayerChatEvent event, Player player,
-                                       ChatWaitObject waitObject, String type) {
-        String input = event.getMessage() == null ? "" : event.getMessage().trim();
+    private void handleOfferPriceInput(Player player, ChatWaitObject waitObject, String type, String input) {
         String offerId = type.substring(type.indexOf(':') + 1);
         Block chest = waitObject.containerBlock;
+        if (!canManageListings(player, chest)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to edit this shop."));
+            return;
+        }
 
         if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("[cancel]")) {
-            chatmap.remove(player.getUniqueId());
             player.sendMessage(ChatColor.RED + "Listing price update cancelled.");
-            EzChestShop.getScheduler().scheduleSyncDelayedTask(
-                    () -> new MultiItemShopGUI().showOfferEditor(player, chest, offerId), 0);
+            new MultiItemShopGUI().showOfferEditor(player, chest, offerId);
             return;
         }
 
         Double amount = parsePrice(input);
         if (amount == null) {
+            chatmap.put(player.getUniqueId(), waitObject);
             player.sendMessage(ChatColor.RED + "Please type a valid non-negative number, or type CANCEL.");
             return;
         }
 
         ShopOffer current = ShopItemUtils.getOffer(chest, offerId);
         if (current == null) {
-            chatmap.remove(player.getUniqueId());
             player.sendMessage(ChatColor.RED + "That listing no longer exists.");
             return;
         }
 
         if (type.startsWith("offer-price-buy:")) {
-            chatmap.put(player.getUniqueId(),
-                    new ChatWaitObject(String.valueOf(amount), "offer-price-sell:" + offerId, chest, waitObject.dataContainer));
+            ChatWaitObject next = new ChatWaitObject(String.valueOf(amount),
+                    "offer-price-sell:" + offerId, chest);
+            chatmap.put(player.getUniqueId(), next);
             sendOfferSellPricePrompt(player, current, amount);
             return;
         }
 
-        double buyPrice;
-        try {
-            buyPrice = Double.parseDouble(waitObject.answer);
-        } catch (NumberFormatException exception) {
-            chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "offer-price-buy:" + offerId, chest));
+        Double buyPrice = parsePrice(waitObject.answer);
+        if (buyPrice == null) {
+            ChatWaitObject restart = new ChatWaitObject("none", "offer-price-buy:" + offerId, chest);
+            chatmap.put(player.getUniqueId(), restart);
             player.sendMessage(ChatColor.RED + "The saved buy price was invalid. Starting over.");
             sendOfferBuyPricePrompt(player, current);
             return;
@@ -211,68 +209,63 @@ public class ChatListener implements Listener {
 
         double sellPrice = amount;
         if (Config.settings_buy_greater_than_sell && buyPrice != 0D && sellPrice > buyPrice) {
+            chatmap.put(player.getUniqueId(), waitObject);
             player.sendMessage(lm.buyGreaterThanSellRequired());
             return;
         }
-
-        EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-            if (!ShopItemUtils.updateOfferPrices(chest, offerId, buyPrice, sellPrice)) {
-                player.sendMessage(ChatColor.RED + "PebbleShop could not save those listing prices.");
-                return;
-            }
-            chatmap.remove(player.getUniqueId());
-            player.sendMessage(Utils.colorify("&aListing prices updated: &fBuy $" + buyPrice + " &8• &fSell $" + sellPrice));
-            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.25f);
-            new MultiItemShopGUI().showOfferEditor(player, chest, offerId);
-        }, 0);
+        if (!ShopItemUtils.updateOfferPrices(chest, offerId, buyPrice, sellPrice)) {
+            chatmap.put(player.getUniqueId(), waitObject);
+            player.sendMessage(ChatColor.RED + "PebbleShop could not save those listing prices.");
+            return;
+        }
+        player.sendMessage(Utils.colorify("&aListing prices updated: &fBuy $" + buyPrice
+                + " &8• &fSell $" + sellPrice));
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.25f);
+        new MultiItemShopGUI().showOfferEditor(player, chest, offerId);
     }
 
-    private void handleLegacyPriceInput(AsyncPlayerChatEvent event, Player player,
-                                        ChatWaitObject waitObject, String type) {
-        String input = event.getMessage() == null ? "" : event.getMessage().trim();
+    private void handleLegacyPriceInput(Player player, ChatWaitObject waitObject, String type, String input) {
+        Block chest = waitObject.containerBlock;
+        if (!canManageListings(player, chest)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to edit this shop."));
+            return;
+        }
         if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("[cancel]")) {
-            chatmap.remove(player.getUniqueId());
             player.sendMessage(ChatColor.RED + "Price update cancelled.");
+            new MultiItemShopGUI().showGUI(player, chest);
             return;
         }
 
         Double amount = parsePrice(input);
         if (amount == null) {
+            chatmap.put(player.getUniqueId(), waitObject);
             player.sendMessage(ChatColor.RED + "Please type a valid non-negative number, or type CANCEL.");
             return;
         }
-
-        Block chest = waitObject.containerBlock;
         if (type.equalsIgnoreCase("price-buy")) {
-            chatmap.put(player.getUniqueId(), new ChatWaitObject(String.valueOf(amount), "price-sell", chest, waitObject.dataContainer));
+            ChatWaitObject next = new ChatWaitObject(String.valueOf(amount), "price-sell", chest);
+            chatmap.put(player.getUniqueId(), next);
             sendSellPricePrompt(player);
             return;
         }
 
-        double buyPrice;
-        try {
-            buyPrice = Double.parseDouble(waitObject.answer);
-        } catch (NumberFormatException exception) {
-            chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest, waitObject.dataContainer));
+        Double buyPrice = parsePrice(waitObject.answer);
+        if (buyPrice == null) {
+            ChatWaitObject restart = new ChatWaitObject("none", "price-buy", chest);
+            chatmap.put(player.getUniqueId(), restart);
             player.sendMessage(ChatColor.RED + "The saved buy price was invalid. Starting over.");
             sendBuyPricePrompt(player);
             return;
         }
 
-        double sellPrice = amount;
-        EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-            SettingsGUI settingsGUI = new SettingsGUI();
-            if (!settingsGUI.changePrices(chest, player, buyPrice, sellPrice)) {
-                chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest,
-                        ((TileState) chest.getState()).getPersistentDataContainer()));
-                player.sendMessage(ChatColor.YELLOW + "Let's try those prices again.");
-                sendBuyPricePrompt(player);
-                return;
-            }
-            chatmap.remove(player.getUniqueId());
-            player.sendMessage(Utils.colorify("&aPebbleShop prices updated."));
-            new MultiItemShopGUI().showGUI(player, chest);
-        }, 0);
+        SettingsGUI settingsGUI = new SettingsGUI();
+        if (!settingsGUI.changePrices(chest, player, buyPrice, amount)) {
+            chatmap.put(player.getUniqueId(), waitObject);
+            player.sendMessage(ChatColor.YELLOW + "Let's try those prices again.");
+            return;
+        }
+        player.sendMessage(Utils.colorify("&aPebbleShop prices updated."));
+        new MultiItemShopGUI().showGUI(player, chest);
     }
 
     private Double parsePrice(String input) {
@@ -290,6 +283,29 @@ public class ChatListener implements Listener {
         }
     }
 
+    private static boolean canManageListings(Player player, Block chest) {
+        if (player == null || chest == null || !(chest.getState() instanceof TileState)) {
+            return false;
+        }
+        PersistentDataContainer data = ((TileState) chest.getState()).getPersistentDataContainer();
+        String ownerId = data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
+        return (ownerId != null && ownerId.equalsIgnoreCase(player.getUniqueId().toString()))
+                || player.isOp()
+                || player.hasPermission("ecs.admin")
+                || Utils.getAdminsList(data).contains(player.getUniqueId());
+    }
+
+    private static boolean canManageSettings(Player player, Block chest) {
+        if (player == null || chest == null || !(chest.getState() instanceof TileState)) {
+            return false;
+        }
+        PersistentDataContainer data = ((TileState) chest.getState()).getPersistentDataContainer();
+        String ownerId = data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
+        return (ownerId != null && ownerId.equalsIgnoreCase(player.getUniqueId().toString()))
+                || player.isOp()
+                || player.hasPermission("ecs.admin");
+    }
+
     public boolean checkIfPlayerExists(String name) {
         Player player = Bukkit.getPlayer(name);
         if (player != null && player.isOnline()) {
@@ -299,6 +315,10 @@ public class ChatListener implements Listener {
     }
 
     public void addThePlayer(String answer, Block chest, Player player) {
+        if (!canManageSettings(player, chest)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to manage shop staff."));
+            return;
+        }
         UUID answerUUID = Bukkit.getOfflinePlayer(answer).getUniqueId();
         List<UUID> admins = Utils.getAdminsList(((TileState) chest.getState()).getPersistentDataContainer());
         if (!admins.contains(answerUUID)) {
@@ -318,6 +338,10 @@ public class ChatListener implements Listener {
     }
 
     public void removeThePlayer(String answer, Block chest, Player player) {
+        if (!canManageSettings(player, chest)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to manage shop staff."));
+            return;
+        }
         UUID answerUUID = Bukkit.getOfflinePlayer(answer).getUniqueId();
         List<UUID> admins = Utils.getAdminsList(((TileState) chest.getState()).getPersistentDataContainer());
         if (admins.contains(answerUUID)) {

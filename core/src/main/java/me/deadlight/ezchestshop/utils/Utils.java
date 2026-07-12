@@ -65,19 +65,35 @@ public class Utils {
     public static DatabaseManager databaseManager;
 
     static {
-        try {
-            if (isFolia()) {
-                versionUtils = (VersionUtils) Class.forName("me.deadlight.ezchestshop.utils.v1_20_R3").newInstance();
-            } else {
-                String packageName = Utils.class.getPackage().getName();
-                String internalsName = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
-                versionUtils = (VersionUtils) Class.forName(packageName + "." + internalsName).newInstance();
-            }
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-                | ClassCastException exception) {
-            Bukkit.getLogger().log(Level.SEVERE,
-                    "EzChestShop could not find a valid implementation for this server version.");
+        versionUtils = loadVersionUtils();
+    }
+
+    private static VersionUtils loadVersionUtils() {
+        String packageName = Utils.class.getPackage().getName();
+        String bukkitVersion = Bukkit.getBukkitVersion();
+        String serverVersion = Bukkit.getVersion();
+        String serverPackageName = Bukkit.getServer().getClass().getPackage().getName();
+
+        if ((bukkitVersion != null && bukkitVersion.contains("26.1.2"))
+                || (serverVersion != null && serverVersion.contains("26.1.2"))) {
+            return new v26_1_2();
         }
+
+        String[] packageParts = serverPackageName.split("\\.");
+        if (packageParts.length > 3) {
+            try {
+                return (VersionUtils) Class.forName(packageName + "." + packageParts[3]).newInstance();
+            } catch (Throwable ignored) {
+                Bukkit.getLogger().log(Level.WARNING,
+                        "[PebbleShop] Could not load legacy version utilities for " + serverPackageName
+                                + "; using Paper-safe utilities instead.");
+            }
+        }
+
+        Bukkit.getLogger().log(Level.WARNING,
+                "[PebbleShop] Using Paper-safe version utilities for " + serverPackageName
+                        + " / " + bukkitVersion + ".");
+        return new PaperVersionUtils();
     }
 
     static boolean isFolia() {

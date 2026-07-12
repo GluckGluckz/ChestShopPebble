@@ -5,6 +5,7 @@ import me.deadlight.ezchestshop.data.Config;
 import me.deadlight.ezchestshop.data.ShopContainer;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.objects.ShopOffer;
+import me.deadlight.ezchestshop.utils.objects.ShopSettings;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -25,7 +26,9 @@ import org.json.simple.parser.JSONParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Persists and manages the independently priced listings attached to a shop.
@@ -207,7 +210,8 @@ public final class ShopItemUtils {
     }
 
     public static boolean updateOfferPrices(Block containerBlock, String offerId, double buyPrice, double sellPrice) {
-        if (buyPrice < 0D || sellPrice < 0D) {
+        if (!Double.isFinite(buyPrice) || !Double.isFinite(sellPrice)
+                || buyPrice < 0D || sellPrice < 0D) {
             return false;
         }
         if (Config.settings_buy_greater_than_sell && buyPrice != 0D && sellPrice > buyPrice) {
@@ -239,6 +243,16 @@ public final class ShopItemUtils {
             data.set(key("dsell"), PersistentDataType.INTEGER, 0);
         }
         state.update();
+
+        ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
+        if (settings != null) {
+            if (buyPrice > 0D && settings.isDbuy()) {
+                settings.setDbuy(false);
+            }
+            if (sellPrice > 0D && settings.isDsell()) {
+                settings.setDsell(false);
+            }
+        }
         return true;
     }
 
@@ -268,6 +282,9 @@ public final class ShopItemUtils {
         }
 
         List<ShopOffer> safeOffers = offers == null ? new ArrayList<>() : new ArrayList<>(offers);
+        if (!validateOffers(containerBlock, safeOffers)) {
+            return false;
+        }
         String payload = encodeOffers(safeOffers);
         if (payload == null) {
             return false;
@@ -276,6 +293,45 @@ public final class ShopItemUtils {
         writeOfferPayload((TileState) containerBlock.getState(), payload, safeOffers);
         mirrorPayloadToDoubleChest(containerBlock, payload);
         syncLegacyDatabase(containerBlock, safeOffers);
+        return true;
+    }
+
+    private static boolean validateOffers(Block containerBlock, List<ShopOffer> offers) {
+        int capacity = getOfferCapacity(containerBlock);
+        if (capacity <= 0 || offers.size() > capacity) {
+            return false;
+        }
+
+        Set<String> ids = new HashSet<>();
+        List<ItemStack> identities = new ArrayList<>();
+        for (ShopOffer offer : offers) {
+            if (offer == null || offer.getId() == null || offer.getId().trim().isEmpty()) {
+                return false;
+            }
+            if (!ids.add(offer.getId())) {
+                return false;
+            }
+            ItemStack item = offer.getItem();
+            if (!isValidListingItem(containerBlock, item)) {
+                return false;
+            }
+            for (ItemStack identity : identities) {
+                if (Utils.isSimilar(identity, item)) {
+                    return false;
+                }
+            }
+            identities.add(item);
+            if (!Double.isFinite(offer.getBuyPrice()) || !Double.isFinite(offer.getSellPrice())
+                    || offer.getBuyPrice() < 0D || offer.getSellPrice() < 0D) {
+                return false;
+            }
+            if (offer.getBuyPrice() <= 0D) {
+                offer.setBuyingEnabled(false);
+            }
+            if (offer.getSellPrice() <= 0D) {
+                offer.setSellingEnabled(false);
+            }
+        }
         return true;
     }
 
@@ -404,6 +460,7 @@ public final class ShopItemUtils {
                 return null;
             }
             List<ShopOffer> offers = new ArrayList<>();
+            Set<String> ids = new HashSet<>();
             for (Object entry : (JSONArray) parsed) {
                 if (!(entry instanceof JSONObject)) {
                     continue;
@@ -411,14 +468,33 @@ public final class ShopItemUtils {
                 JSONObject object = (JSONObject) entry;
                 String id = stringValue(object.get("id"));
                 String encodedItem = stringValue(object.get("item"));
+                if (encodedItem.trim().isEmpty()) {
+                    continue;
+                }
                 ItemStack item = Utils.decodeItem(encodedItem);
                 if (item == null || item.getType() == Material.AIR || isEmptyPlaceholder(item)) {
                     continue;
                 }
                 double buy = numberValue(object.get("buy"));
                 double sell = numberValue(object.get("sell"));
-                boolean buyEnabled = booleanValue(object.get("buyEnabled"), buy > 0D);
-                boolean sellEnabled = booleanValue(object.get("sellEnabled"), sell > 0D);
+                if (!Double.isFinite(buy) || !Double.isFinite(sell) || buy < 0D || sell < 0D) {
+                    continue;
+                }
+                if (id.trim().isEmpty() || !ids.add(id)) {
+                    continue;
+                }
+                boolean duplicateItem = false;
+                for (ShopOffer existing : offers) {
+                    if (existing.matches(item)) {
+                        duplicateItem = true;
+                        break;
+                    }
+                }
+                if (duplicateItem) {
+                    continue;
+                }
+                boolean buyEnabled = booleanValue(object.get("buyEnabled"), buy > 0D) && buy > 0D;
+                boolean sellEnabled = booleanValue(object.get("sellEnabled"), sell > 0D) && sell > 0D;
                 offers.add(new ShopOffer(id, item, buy, sell, buyEnabled, sellEnabled));
             }
             return offers;
