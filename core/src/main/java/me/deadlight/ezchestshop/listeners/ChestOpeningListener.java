@@ -68,12 +68,14 @@ public class ChestOpeningListener implements Listener {
         containerBlock = resolved.block;
         Location location = containerBlock.getLocation();
 
-        // Legacy one-item shops are migrated lazily the first time they are opened.
-        ShopItemUtils.getOffers(containerBlock);
-
         if (!ShopContainer.isShop(location)) {
             ShopContainer.loadShop(location, resolved.data);
         }
+
+        // Legacy one-item shops are migrated lazily the first time they are opened.
+        // Load the shop first so the inherited inventory helpers can safely resolve
+        // single and double-chest storage during migration.
+        ShopItemUtils.getOffers(containerBlock);
 
         hideActiveOutline(event.getPlayer(), location);
 
@@ -119,7 +121,10 @@ public class ChestOpeningListener implements Listener {
             return new ResolvedContainer(clickedBlock, clickedState.getPersistentDataContainer());
         }
 
-        Inventory inventory = Utils.getBlockInventory(clickedBlock);
+        // Do not use Utils#getBlockInventory here: that helper intentionally rejects
+        // shops which are not loaded into ShopContainer yet. A direct chest inventory
+        // lookup is required so either half of a double chest works after a restart.
+        Inventory inventory = ((Chest) clickedState).getInventory();
         if (!(inventory instanceof DoubleChestInventory)) {
             return new ResolvedContainer(clickedBlock, clickedState.getPersistentDataContainer());
         }
