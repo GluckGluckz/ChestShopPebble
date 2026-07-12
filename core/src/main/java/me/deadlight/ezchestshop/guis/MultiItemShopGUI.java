@@ -280,7 +280,10 @@ public class MultiItemShopGUI {
                 player.sendMessage(Utils.colorify("&eSet a buy price above zero before enabling buying."));
                 return;
             }
-            ShopItemUtils.toggleOfferBuying(containerBlock, offerId);
+            if (!ShopItemUtils.toggleOfferBuying(containerBlock, offerId)) {
+                player.sendMessage(Utils.colorify("&cPebbleShop could not update that listing."));
+                return;
+            }
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
             showOfferEditor(player, containerBlock, offerId);
         }));
@@ -309,7 +312,10 @@ public class MultiItemShopGUI {
                 player.sendMessage(Utils.colorify("&eSet a sell price above zero before enabling selling."));
                 return;
             }
-            ShopItemUtils.toggleOfferSelling(containerBlock, offerId);
+            if (!ShopItemUtils.toggleOfferSelling(containerBlock, offerId)) {
+                player.sendMessage(Utils.colorify("&cPebbleShop could not update that listing."));
+                return;
+            }
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.2f);
             showOfferEditor(player, containerBlock, offerId);
         }));
@@ -391,9 +397,10 @@ public class MultiItemShopGUI {
             if (!requireSettingsAccess(player, containerBlock)) {
                 return;
             }
-            setGlobalFlag(containerBlock, "dbuy", !buyDisabled);
+            boolean newDisabled = !flag(data(containerBlock), "dbuy", false);
+            setGlobalFlag(containerBlock, "dbuy", newDisabled);
             ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
-            if (settings != null) settings.setDbuy(!buyDisabled);
+            if (settings != null) settings.setDbuy(newDisabled);
             showSettings(player, containerBlock);
         }));
 
@@ -405,9 +412,10 @@ public class MultiItemShopGUI {
             if (!requireSettingsAccess(player, containerBlock)) {
                 return;
             }
-            setGlobalFlag(containerBlock, "dsell", !sellDisabled);
+            boolean newDisabled = !flag(data(containerBlock), "dsell", false);
+            setGlobalFlag(containerBlock, "dsell", newDisabled);
             ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
-            if (settings != null) settings.setDsell(!sellDisabled);
+            if (settings != null) settings.setDsell(newDisabled);
             showSettings(player, containerBlock);
         }));
 
@@ -419,9 +427,10 @@ public class MultiItemShopGUI {
             if (!requireSettingsAccess(player, containerBlock)) {
                 return;
             }
-            setGlobalFlag(containerBlock, "msgtoggle", !messages);
+            boolean newValue = !flag(data(containerBlock), "msgtoggle", true);
+            setGlobalFlag(containerBlock, "msgtoggle", newValue);
             ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
-            if (settings != null) settings.setMsgtoggle(!messages);
+            if (settings != null) settings.setMsgtoggle(newValue);
             showSettings(player, containerBlock);
         }));
 
@@ -437,9 +446,10 @@ public class MultiItemShopGUI {
                 player.sendMessage(Utils.colorify("&cShared income is not used by admin shops."));
                 return;
             }
-            setGlobalFlag(containerBlock, "shareincome", !shareIncome);
+            boolean newValue = !flag(data(containerBlock), "shareincome", false);
+            setGlobalFlag(containerBlock, "shareincome", newValue);
             ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
-            if (settings != null) settings.setShareincome(!shareIncome);
+            if (settings != null) settings.setShareincome(newValue);
             showSettings(player, containerBlock);
         }));
 
@@ -805,8 +815,11 @@ public class MultiItemShopGUI {
             if (ShopItemUtils.removeOffer(containerBlock, offerId)) {
                 player.sendMessage(Utils.colorify("&aListing removed. Stock was left in the chest."));
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+                showGUI(player, containerBlock);
+            } else {
+                player.sendMessage(Utils.colorify("&cPebbleShop could not remove that listing."));
+                showOfferEditor(player, containerBlock, offerId);
             }
-            showGUI(player, containerBlock);
         }));
 
         ItemStack cancel = namedItem(Material.RED_CONCRETE, "&c&lCancel",

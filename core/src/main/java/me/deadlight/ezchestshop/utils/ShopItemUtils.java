@@ -223,6 +223,18 @@ public final class ShopItemUtils {
         if (target == null) {
             return false;
         }
+
+        boolean hadUsableBuying = false;
+        boolean hadUsableSelling = false;
+        for (ShopOffer existing : offers) {
+            if (existing.isBuyingEnabled() && existing.getBuyPrice() > 0D) {
+                hadUsableBuying = true;
+            }
+            if (existing.isSellingEnabled() && existing.getSellPrice() > 0D) {
+                hadUsableSelling = true;
+            }
+        }
+
         target.setBuyPrice(buyPrice);
         target.setSellPrice(sellPrice);
         target.setBuyingEnabled(buyPrice > 0D);
@@ -232,24 +244,24 @@ public final class ShopItemUtils {
             return false;
         }
 
-        // New shops start globally disabled. Setting a usable per-item price should
-        // make that direction available unless the owner later disables it globally.
+        // New shops start globally disabled. Only the first usable listing in a
+        // direction enables it; later edits preserve an explicit global disable.
         TileState state = (TileState) containerBlock.getState();
         PersistentDataContainer data = state.getPersistentDataContainer();
-        if (buyPrice > 0D) {
+        if (buyPrice > 0D && !hadUsableBuying) {
             data.set(key("dbuy"), PersistentDataType.INTEGER, 0);
         }
-        if (sellPrice > 0D) {
+        if (sellPrice > 0D && !hadUsableSelling) {
             data.set(key("dsell"), PersistentDataType.INTEGER, 0);
         }
         state.update();
 
         ShopSettings settings = ShopContainer.getShopSettings(containerBlock.getLocation());
         if (settings != null) {
-            if (buyPrice > 0D && settings.isDbuy()) {
+            if (buyPrice > 0D && !hadUsableBuying && settings.isDbuy()) {
                 settings.setDbuy(false);
             }
-            if (sellPrice > 0D && settings.isDsell()) {
+            if (sellPrice > 0D && !hadUsableSelling && settings.isDsell()) {
                 settings.setDsell(false);
             }
         }

@@ -312,7 +312,7 @@ public class ShopContainer {
         LanguageManager lm = new LanguageManager();
         Inventory storage = Utils.getBlockInventory(containerBlock);
         OfflinePlayer buyer = Bukkit.getOfflinePlayer(player.getUniqueId());
-        if (!validTransaction(price, count) || storage == null || owner == null) {
+        if (!validTransaction(price, count) || !isRealItem(template) || storage == null || owner == null) {
             player.sendMessage(lm.chestShopProblem());
             return;
         }
@@ -370,7 +370,7 @@ public class ShopContainer {
         LanguageManager lm = new LanguageManager();
         Inventory storage = Utils.getBlockInventory(containerBlock);
         OfflinePlayer seller = Bukkit.getOfflinePlayer(player.getUniqueId());
-        if (!validTransaction(price, count) || storage == null || owner == null) {
+        if (!validTransaction(price, count) || !isRealItem(template) || storage == null || owner == null) {
             player.sendMessage(lm.chestShopProblem());
             return;
         }
@@ -426,7 +426,7 @@ public class ShopContainer {
             PersistentDataContainer data) {
         LanguageManager lm = new LanguageManager();
         OfflinePlayer buyer = Bukkit.getOfflinePlayer(player.getUniqueId());
-        if (!validTransaction(price, count)) {
+        if (!validTransaction(price, count) || !isRealItem(template)) {
             player.sendMessage(lm.cannotAfford());
             return;
         }
@@ -463,7 +463,7 @@ public class ShopContainer {
             PersistentDataContainer data) {
         LanguageManager lm = new LanguageManager();
         OfflinePlayer seller = Bukkit.getOfflinePlayer(player.getUniqueId());
-        if (!validTransaction(price, count)) {
+        if (!validTransaction(price, count) || !isRealItem(template)) {
             player.sendMessage(lm.notEnoughItemToSell());
             return;
         }
@@ -492,6 +492,10 @@ public class ShopContainer {
 
     private static boolean validTransaction(double price, int count) {
         return count > 0 && Double.isFinite(price) && price >= 0D;
+    }
+
+    private static boolean isRealItem(ItemStack item) {
+        return item != null && item.getType() != Material.AIR;
     }
 
     private static boolean removeExactItem(Inventory inventory, ItemStack template, int count) {
@@ -602,7 +606,7 @@ public class ShopContainer {
         if (Config.useXP) {
             return XPEconomy.withDrawPlayer(deposit, price);
         } else {
-            return econ.withdrawPlayer(deposit, price).transactionSuccess();
+            return econ != null && econ.withdrawPlayer(deposit, price).transactionSuccess();
         }
 
     }
@@ -634,28 +638,31 @@ public class ShopContainer {
     }
 
     private static void sharedIncomeCheck(PersistentDataContainer data, double price) {
-        boolean isSharedIncome = data.get(new NamespacedKey(EzChestShop.getPlugin(), "shareincome"),
-                PersistentDataType.INTEGER) == 1;
-        if (isSharedIncome) {
-            UUID ownerUUID = UUID.fromString(
-                    data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING));
-            List<UUID> adminsList = Utils.getAdminsList(data);
-            double profit = price / (adminsList.size() + 1);
-            if (adminsList.size() > 0) {
-                if (ifHasMoney(Bukkit.getOfflinePlayer(ownerUUID), profit * adminsList.size())) {
-                    boolean succesful = withdraw(profit * adminsList.size(), Bukkit.getOfflinePlayer(ownerUUID));
-                    if (succesful) {
-                        for (UUID adminUUID : adminsList) {
-                            if (!deposit(profit, Bukkit.getOfflinePlayer(adminUUID))) {
-                                deposit(profit, Bukkit.getOfflinePlayer(ownerUUID));
-                            }
-                        }
-                    }
-                }
-
-            }
+        if (data == null || !Double.isFinite(price) || price <= 0D) {
+            return;
+        }
+        Integer enabled = data.get(new NamespacedKey(EzChestShop.getPlugin(), "shareincome"),
+                PersistentDataType.INTEGER);
+        if (enabled == null || enabled != 1) {
+            return;
         }
 
+        OfflinePlayer owner = ownerFrom(data);
+        List<UUID> admins = Utils.getAdminsList(data);
+        if (owner == null || admins.isEmpty()) {
+            return;
+        }
+
+        double share = price / (admins.size() + 1D);
+        double totalStaffShare = share * admins.size();
+        if (!Double.isFinite(share) || share <= 0D || !withdraw(totalStaffShare, owner)) {
+            return;
+        }
+        for (UUID adminId : admins) {
+            if (!deposit(share, Bukkit.getOfflinePlayer(adminId))) {
+                deposit(share, owner);
+            }
+        }
     }
 
     public static void transferOwner(BlockState state, OfflinePlayer newOwner) {

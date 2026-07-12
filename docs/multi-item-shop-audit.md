@@ -28,3 +28,10 @@ The multi-item and Bedrock-safe storefront was audited before merging to `main`.
 - Inventory additions and economy deposits now expose failure and trigger rollback.
 - Malformed staff UUID data is ignored safely instead of breaking shop access.
 - Prompt state is cleaned on disconnect and rapid duplicate prompt input cannot leak into public chat.
+
+## Final polish
+
+- Global settings derive their new value from current PDC state, so stale GUIs cannot reverse another administrator's change.
+- Listing toggles and removal now surface persistence failures instead of presenting false success.
+- Editing an existing listing no longer silently re-enables a direction that the owner globally disabled.
+- Transactions reject null/AIR templates, guard missing economy providers, and parse shared-income metadata defensively.
