@@ -30,8 +30,8 @@ public class ShopOffer {
                      boolean buyingEnabled, boolean sellingEnabled) {
         this.id = id == null || id.trim().isEmpty() ? UUID.randomUUID().toString() : id;
         setItem(item);
-        this.buyPrice = Math.max(0D, buyPrice);
-        this.sellPrice = Math.max(0D, sellPrice);
+        this.buyPrice = sanitizePrice(buyPrice);
+        this.sellPrice = sanitizePrice(sellPrice);
         this.buyingEnabled = buyingEnabled;
         this.sellingEnabled = sellingEnabled;
     }
@@ -57,7 +57,7 @@ public class ShopOffer {
     }
 
     public void setBuyPrice(double buyPrice) {
-        this.buyPrice = Math.max(0D, buyPrice);
+        this.buyPrice = sanitizePrice(buyPrice);
     }
 
     public double getSellPrice() {
@@ -65,7 +65,7 @@ public class ShopOffer {
     }
 
     public void setSellPrice(double sellPrice) {
-        this.sellPrice = Math.max(0D, sellPrice);
+        this.sellPrice = sanitizePrice(sellPrice);
     }
 
     public boolean isBuyingEnabled() {
@@ -82,6 +82,10 @@ public class ShopOffer {
 
     public void setSellingEnabled(boolean sellingEnabled) {
         this.sellingEnabled = sellingEnabled;
+    }
+
+    private static double sanitizePrice(double price) {
+        return Double.isFinite(price) && price >= 0D ? price : 0D;
     }
 
     public boolean matches(ItemStack other) {

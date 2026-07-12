@@ -3,6 +3,7 @@ package me.deadlight.ezchestshop.data;
 import me.deadlight.ezchestshop.enums.Changes;
 import me.deadlight.ezchestshop.events.PlayerTransactEvent;
 import me.deadlight.ezchestshop.EzChestShop;
+import me.deadlight.ezchestshop.utils.ShopItemUtils;
 import me.deadlight.ezchestshop.utils.holograms.ShopHologram;
 import me.deadlight.ezchestshop.utils.objects.EzShop;
 import me.deadlight.ezchestshop.utils.objects.ShopSettings;
@@ -17,6 +18,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -25,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -185,6 +188,14 @@ public class ShopContainer {
                 oldContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "adminshop"), PersistentDataType.INTEGER));
         newContainer.set(new NamespacedKey(EzChestShop.getPlugin(), "item"), PersistentDataType.STRING,
                 oldContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "item"), PersistentDataType.STRING));
+        String offersPayload = oldContainer.get(ShopItemUtils.offersKey(), PersistentDataType.STRING);
+        if (offersPayload != null) {
+            newContainer.set(ShopItemUtils.offersKey(), PersistentDataType.STRING, offersPayload);
+        }
+        Integer emptyShopItem = oldContainer.get(ShopItemUtils.emptyShopItemKey(), PersistentDataType.INTEGER);
+        if (emptyShopItem != null) {
+            newContainer.set(ShopItemUtils.emptyShopItemKey(), PersistentDataType.INTEGER, emptyShopItem);
+        }
         String rotation = oldContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "rotation"),
                 PersistentDataType.STRING);
         rotation = rotation == null ? Config.settings_defaults_rotation : rotation;
@@ -296,217 +307,325 @@ public class ShopContainer {
         }
     }
 
-    public static void buyItem(Block containerBlock, double price, int count, ItemStack tthatItem, Player player,
+    public static void buyItem(Block containerBlock, double price, int count, ItemStack template, Player player,
             OfflinePlayer owner, PersistentDataContainer data) {
-        ItemStack thatItem = tthatItem.clone();
-
         LanguageManager lm = new LanguageManager();
-        // check for money
-        if (Utils.containsAtLeast(Utils.getBlockInventory(containerBlock), thatItem, count)) {
-
-            if (ifHasMoney(Bukkit.getOfflinePlayer(player.getUniqueId()), price)) {
-
-                if (Utils.hasEnoughSpace(player, count, thatItem)) {
-
-                    int stacks = (int) Math.ceil(count / (double) thatItem.getMaxStackSize());
-                    int max_size = thatItem.getMaxStackSize();
-                    for (int i = 0; i < stacks; i++) {
-                        if (i + 1 == stacks) {
-                            thatItem.setAmount(count % max_size == 0 ? max_size : count % max_size);
-                        } else {
-                            thatItem.setAmount(max_size);
-                        }
-                        player.getInventory().addItem(thatItem);
-                    }
-                    // For the transaction event
-                    thatItem.setAmount(count);
-                    Utils.removeItem(Utils.getBlockInventory(containerBlock), thatItem);
-                    getandgive(Bukkit.getOfflinePlayer(player.getUniqueId()), price, owner);
-                    sharedIncomeCheck(data, price);
-                    transactionMessage(data, owner, player, price, true, tthatItem, count,
-                            containerBlock.getLocation().getBlock());
-                    player.sendMessage(lm.messageSuccBuy(price));
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 0.5f);
-                    Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
-                            ShopCommandManager.ShopType.SHOP, ShopCommandManager.ShopAction.BUY, count + "");
-
-                } else {
-                    player.sendMessage(lm.fullinv());
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-                }
-
-            } else {
-
-                player.sendMessage(lm.cannotAfford());
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-
-            }
-
-        } else {
+        Inventory storage = Utils.getBlockInventory(containerBlock);
+        OfflinePlayer buyer = Bukkit.getOfflinePlayer(player.getUniqueId());
+        if (!validTransaction(price, count) || !isRealItem(template) || storage == null || owner == null) {
+            player.sendMessage(lm.chestShopProblem());
+            return;
+        }
+        if (!Utils.containsAtLeast(storage, template, count)) {
             player.sendMessage(lm.outofStock());
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
+            failureSound(player);
+            return;
         }
-    }
-
-    public static void sellItem(Block containerBlock, double price, int count, ItemStack tthatItem, Player player,
-            OfflinePlayer owner, PersistentDataContainer data) {
-
-        LanguageManager lm = new LanguageManager();
-
-        ItemStack thatItem = tthatItem.clone();
-
-        if (Utils.containsAtLeast(player.getInventory(), thatItem, count)) {
-
-            if (ifHasMoney(owner, price)) {
-
-                if (Utils.containerHasEnoughSpace(Utils.getBlockInventory(containerBlock), count, thatItem)) {
-                    int stacks = (int) Math.ceil(count / (double) thatItem.getMaxStackSize());
-                    int max_size = thatItem.getMaxStackSize();
-                    for (int i = 0; i < stacks; i++) {
-                        if (i + 1 == stacks) {
-                            thatItem.setAmount(count % max_size == 0 ? max_size : count % max_size);
-                        } else {
-                            thatItem.setAmount(max_size);
-                        }
-                        Utils.getBlockInventory(containerBlock).addItem(thatItem);
-                    }
-                    // For the transaction event
-                    thatItem.setAmount(count);
-                    Utils.removeItem(player.getInventory(), thatItem);
-                    getandgive(owner, price, Bukkit.getOfflinePlayer(player.getUniqueId()));
-                    transactionMessage(data, owner, Bukkit.getOfflinePlayer(player.getUniqueId()), price, false,
-                            tthatItem, count, containerBlock.getLocation().getBlock());
-                    player.sendMessage(lm.messageSuccSell(price));
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 0.5f);
-                    Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
-                            ShopCommandManager.ShopType.SHOP, ShopCommandManager.ShopAction.SELL, count + "");
-
-                } else {
-                    player.sendMessage(lm.chestIsFull());
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-                }
-
-            } else {
-
-                player.sendMessage(lm.shopCannotAfford());
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-
-            }
-        } else {
-            player.sendMessage(lm.notEnoughItemToSell());
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-        }
-
-    }
-
-    public static void buyServerItem(Block containerBlock, double price, int count, Player player, ItemStack tthatItem,
-            PersistentDataContainer data) {
-        ItemStack thatItem = tthatItem.clone();
-
-        LanguageManager lm = new LanguageManager();
-        // check for money
-
-        if (ifHasMoney(Bukkit.getOfflinePlayer(player.getUniqueId()), price)) {
-
-            if (Utils.hasEnoughSpace(player, count, thatItem)) {
-
-                int stacks = (int) Math.ceil(count / (double) thatItem.getMaxStackSize());
-                int max_size = thatItem.getMaxStackSize();
-                for (int i = 0; i < stacks; i++) {
-                    if (i + 1 == stacks) {
-                        thatItem.setAmount(count % max_size == 0 ? max_size : count % max_size);
-                    } else {
-                        thatItem.setAmount(max_size);
-                    }
-                    player.getInventory().addItem(thatItem);
-                }
-                // For the transaction event
-                thatItem.setAmount(count);
-                withdraw(price, Bukkit.getOfflinePlayer(player.getUniqueId()));
-                transactionMessage(data, Bukkit.getOfflinePlayer(UUID.fromString(
-                        data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING))),
-                        Bukkit.getOfflinePlayer(player.getUniqueId()), price, true, tthatItem, count, containerBlock);
-                player.sendMessage(lm.messageSuccBuy(price));
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 0.5f);
-                Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
-                        ShopCommandManager.ShopType.ADMINSHOP, ShopCommandManager.ShopAction.BUY, count + "");
-
-            } else {
-                player.sendMessage(lm.fullinv());
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-            }
-
-        } else {
-
+        if (!ifHasMoney(buyer, price)) {
             player.sendMessage(lm.cannotAfford());
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
-
+            failureSound(player);
+            return;
         }
-
+        if (!Utils.hasEnoughSpace(player, count, template)) {
+            player.sendMessage(lm.fullinv());
+            failureSound(player);
+            return;
+        }
+        if (!withdraw(price, buyer)) {
+            player.sendMessage(lm.cannotAfford());
+            failureSound(player);
+            return;
+        }
+        if (!removeExactItem(storage, template, count)) {
+            deposit(price, buyer);
+            player.sendMessage(lm.outofStock());
+            failureSound(player);
+            return;
+        }
+        if (!addItemStacks(player.getInventory(), template, count)) {
+            addItemStacks(storage, template, count);
+            deposit(price, buyer);
+            player.sendMessage(lm.fullinv());
+            failureSound(player);
+            return;
+        }
+        if (!deposit(price, owner)) {
+            removeExactItem(player.getInventory(), template, count);
+            addItemStacks(storage, template, count);
+            deposit(price, buyer);
+            player.sendMessage(lm.chestShopProblem());
+            failureSound(player);
+            return;
+        }
+        sharedIncomeCheck(data, price);
+        transactionMessage(data, owner, buyer, price, true, template, count, containerBlock);
+        player.sendMessage(lm.messageSuccBuy(price));
+        successSound(player);
+        Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
+                ShopCommandManager.ShopType.SHOP, ShopCommandManager.ShopAction.BUY, count + "");
     }
 
-    public static void sellServerItem(Block containerBlock, double price, int count, ItemStack tthatItem, Player player,
-            PersistentDataContainer data) {
-
+    public static void sellItem(Block containerBlock, double price, int count, ItemStack template, Player player,
+            OfflinePlayer owner, PersistentDataContainer data) {
         LanguageManager lm = new LanguageManager();
-
-        ItemStack thatItem = tthatItem.clone();
-
-        if (Utils.containsAtLeast(player.getInventory(), thatItem, count)) {
-
-            thatItem.setAmount(count);
-            deposit(price, Bukkit.getOfflinePlayer(player.getUniqueId()));
-            transactionMessage(data, Bukkit.getOfflinePlayer(UUID.fromString(
-                    data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING))),
-                    Bukkit.getOfflinePlayer(player.getUniqueId()), price, false, tthatItem, count, containerBlock);
-            Utils.removeItem(player.getInventory(), thatItem);
-            player.sendMessage(lm.messageSuccSell(price));
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 0.5f);
-            Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
-                    ShopCommandManager.ShopType.ADMINSHOP, ShopCommandManager.ShopAction.SELL, count + "");
-
-        } else {
-            player.sendMessage(lm.notEnoughItemToSell());
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
+        Inventory storage = Utils.getBlockInventory(containerBlock);
+        OfflinePlayer seller = Bukkit.getOfflinePlayer(player.getUniqueId());
+        if (!validTransaction(price, count) || !isRealItem(template) || storage == null || owner == null) {
+            player.sendMessage(lm.chestShopProblem());
+            return;
         }
-
+        if (!Utils.containsAtLeast(player.getInventory(), template, count)) {
+            player.sendMessage(lm.notEnoughItemToSell());
+            failureSound(player);
+            return;
+        }
+        if (!ifHasMoney(owner, price)) {
+            player.sendMessage(lm.shopCannotAfford());
+            failureSound(player);
+            return;
+        }
+        if (!Utils.containerHasEnoughSpace(storage, count, template)) {
+            player.sendMessage(lm.chestIsFull());
+            failureSound(player);
+            return;
+        }
+        if (!withdraw(price, owner)) {
+            player.sendMessage(lm.shopCannotAfford());
+            failureSound(player);
+            return;
+        }
+        if (!removeExactItem(player.getInventory(), template, count)) {
+            deposit(price, owner);
+            player.sendMessage(lm.notEnoughItemToSell());
+            failureSound(player);
+            return;
+        }
+        if (!addItemStacks(storage, template, count)) {
+            addItemStacks(player.getInventory(), template, count);
+            deposit(price, owner);
+            player.sendMessage(lm.chestIsFull());
+            failureSound(player);
+            return;
+        }
+        if (!deposit(price, seller)) {
+            removeExactItem(storage, template, count);
+            addItemStacks(player.getInventory(), template, count);
+            deposit(price, owner);
+            player.sendMessage(lm.chestShopProblem());
+            failureSound(player);
+            return;
+        }
+        transactionMessage(data, owner, seller, price, false, template, count, containerBlock);
+        player.sendMessage(lm.messageSuccSell(price));
+        successSound(player);
+        Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
+                ShopCommandManager.ShopType.SHOP, ShopCommandManager.ShopAction.SELL, count + "");
     }
 
-    private static void deposit(double price, OfflinePlayer deposit) {
-
-        if (Config.useXP) {
-            XPEconomy.depositPlayer(deposit, price);
-        } else {
-            econ.depositPlayer(deposit, price);
+    public static void buyServerItem(Block containerBlock, double price, int count, Player player, ItemStack template,
+            PersistentDataContainer data) {
+        LanguageManager lm = new LanguageManager();
+        OfflinePlayer buyer = Bukkit.getOfflinePlayer(player.getUniqueId());
+        if (!validTransaction(price, count) || !isRealItem(template)) {
+            player.sendMessage(lm.cannotAfford());
+            return;
         }
+        if (!ifHasMoney(buyer, price)) {
+            player.sendMessage(lm.cannotAfford());
+            failureSound(player);
+            return;
+        }
+        if (!Utils.hasEnoughSpace(player, count, template)) {
+            player.sendMessage(lm.fullinv());
+            failureSound(player);
+            return;
+        }
+        if (!withdraw(price, buyer)) {
+            player.sendMessage(lm.cannotAfford());
+            failureSound(player);
+            return;
+        }
+        if (!addItemStacks(player.getInventory(), template, count)) {
+            deposit(price, buyer);
+            player.sendMessage(lm.fullinv());
+            failureSound(player);
+            return;
+        }
+        OfflinePlayer owner = ownerFrom(data);
+        transactionMessage(data, owner, buyer, price, true, template, count, containerBlock);
+        player.sendMessage(lm.messageSuccBuy(price));
+        successSound(player);
+        Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
+                ShopCommandManager.ShopType.ADMINSHOP, ShopCommandManager.ShopAction.BUY, count + "");
+    }
 
+    public static void sellServerItem(Block containerBlock, double price, int count, ItemStack template, Player player,
+            PersistentDataContainer data) {
+        LanguageManager lm = new LanguageManager();
+        OfflinePlayer seller = Bukkit.getOfflinePlayer(player.getUniqueId());
+        if (!validTransaction(price, count) || !isRealItem(template)) {
+            player.sendMessage(lm.notEnoughItemToSell());
+            return;
+        }
+        if (!Utils.containsAtLeast(player.getInventory(), template, count)) {
+            player.sendMessage(lm.notEnoughItemToSell());
+            failureSound(player);
+            return;
+        }
+        if (!removeExactItem(player.getInventory(), template, count)) {
+            player.sendMessage(lm.notEnoughItemToSell());
+            failureSound(player);
+            return;
+        }
+        if (!deposit(price, seller)) {
+            addItemStacks(player.getInventory(), template, count);
+            player.sendMessage(lm.chestShopProblem());
+            failureSound(player);
+            return;
+        }
+        transactionMessage(data, ownerFrom(data), seller, price, false, template, count, containerBlock);
+        player.sendMessage(lm.messageSuccSell(price));
+        successSound(player);
+        Config.shopCommandManager.executeCommands(player, containerBlock.getLocation(),
+                ShopCommandManager.ShopType.ADMINSHOP, ShopCommandManager.ShopAction.SELL, count + "");
+    }
+
+    private static boolean validTransaction(double price, int count) {
+        return count > 0 && Double.isFinite(price) && price >= 0D;
+    }
+
+    private static boolean isRealItem(ItemStack item) {
+        return item != null && item.getType() != Material.AIR;
+    }
+
+    private static boolean removeExactItem(Inventory inventory, ItemStack template, int count) {
+        if (inventory == null || template == null || count <= 0) {
+            return false;
+        }
+        int remaining = count;
+        for (int slot = 0; slot < inventory.getSize() && remaining > 0; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || !Utils.isSimilar(stack, template)) {
+                continue;
+            }
+            int take = Math.min(stack.getAmount(), remaining);
+            remaining -= take;
+            if (take == stack.getAmount()) {
+                inventory.setItem(slot, null);
+            } else {
+                stack.setAmount(stack.getAmount() - take);
+                inventory.setItem(slot, stack);
+            }
+        }
+        if (remaining == 0) {
+            return true;
+        }
+        int removed = count - remaining;
+        if (removed > 0) {
+            addItemStacks(inventory, template, removed);
+        }
+        return false;
+    }
+
+    private static boolean addItemStacks(Inventory inventory, ItemStack template, int count) {
+        if (inventory == null || template == null || count < 0) {
+            return false;
+        }
+        int remaining = count;
+        int added = 0;
+        int maxStack = Math.max(1, template.getMaxStackSize());
+        while (remaining > 0) {
+            ItemStack stack = template.clone();
+            int amount = Math.min(maxStack, remaining);
+            stack.setAmount(amount);
+            Map<Integer, ItemStack> leftovers = inventory.addItem(stack);
+            int leftoverAmount = 0;
+            for (ItemStack leftover : leftovers.values()) {
+                if (leftover != null) {
+                    leftoverAmount += leftover.getAmount();
+                }
+            }
+            int inserted = amount - leftoverAmount;
+            added += inserted;
+            remaining -= amount;
+            if (leftoverAmount > 0) {
+                if (added > 0) {
+                    removeExactItem(inventory, template, added);
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static OfflinePlayer ownerFrom(PersistentDataContainer data) {
+        if (data == null) {
+            return null;
+        }
+        String owner = data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
+        if (owner == null) {
+            return null;
+        }
+        try {
+            return Bukkit.getOfflinePlayer(UUID.fromString(owner));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private static void successSound(Player player) {
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 0.5f);
+    }
+
+    private static void failureSound(Player player) {
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
+    }
+
+    private static boolean deposit(double price, OfflinePlayer deposit) {
+
+        if (deposit == null || !Double.isFinite(price) || price < 0D) {
+            return false;
+        }
+        if (price == 0D) {
+            return true;
+        }
+        if (Config.useXP) {
+            return XPEconomy.depositPlayer(deposit, price);
+        }
+        return econ != null && econ.depositPlayer(deposit, price).transactionSuccess();
     }
 
     private static boolean withdraw(double price, OfflinePlayer deposit) {
 
+        if (deposit == null || !Double.isFinite(price) || price < 0D) {
+            return false;
+        }
+        if (price == 0D) {
+            return true;
+        }
         if (Config.useXP) {
             return XPEconomy.withDrawPlayer(deposit, price);
         } else {
-            return econ.withdrawPlayer(deposit, price).transactionSuccess();
+            return econ != null && econ.withdrawPlayer(deposit, price).transactionSuccess();
         }
 
     }
 
     private static boolean ifHasMoney(OfflinePlayer player, double price) {
+        if (player == null || !Double.isFinite(price) || price < 0D) {
+            return false;
+        }
         if (Config.useXP) {
             return XPEconomy.has(player, price);
         } else {
+            if (econ == null) {
+                return false;
+            }
             double balance = econ.getBalance(player);
-            return !(balance < price);
+            return Double.isFinite(balance) && balance >= price;
         }
     }
 
-    private static void getandgive(OfflinePlayer withdraw, double price, OfflinePlayer deposit) {
-
-        withdraw(price, withdraw);
-        deposit(price, deposit);
-
-    }
 
     private static void transactionMessage(PersistentDataContainer data, OfflinePlayer owner, OfflinePlayer customer,
             double price, boolean isBuy, ItemStack item, int count, Block containerBlock) {
@@ -519,26 +638,31 @@ public class ShopContainer {
     }
 
     private static void sharedIncomeCheck(PersistentDataContainer data, double price) {
-        boolean isSharedIncome = data.get(new NamespacedKey(EzChestShop.getPlugin(), "shareincome"),
-                PersistentDataType.INTEGER) == 1;
-        if (isSharedIncome) {
-            UUID ownerUUID = UUID.fromString(
-                    data.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING));
-            List<UUID> adminsList = Utils.getAdminsList(data);
-            double profit = price / (adminsList.size() + 1);
-            if (adminsList.size() > 0) {
-                if (ifHasMoney(Bukkit.getOfflinePlayer(ownerUUID), profit * adminsList.size())) {
-                    boolean succesful = withdraw(profit * adminsList.size(), Bukkit.getOfflinePlayer(ownerUUID));
-                    if (succesful) {
-                        for (UUID adminUUID : adminsList) {
-                            deposit(profit, Bukkit.getOfflinePlayer(adminUUID));
-                        }
-                    }
-                }
-
-            }
+        if (data == null || !Double.isFinite(price) || price <= 0D) {
+            return;
+        }
+        Integer enabled = data.get(new NamespacedKey(EzChestShop.getPlugin(), "shareincome"),
+                PersistentDataType.INTEGER);
+        if (enabled == null || enabled != 1) {
+            return;
         }
 
+        OfflinePlayer owner = ownerFrom(data);
+        List<UUID> admins = Utils.getAdminsList(data);
+        if (owner == null || admins.isEmpty()) {
+            return;
+        }
+
+        double share = price / (admins.size() + 1D);
+        double totalStaffShare = share * admins.size();
+        if (!Double.isFinite(share) || share <= 0D || !withdraw(totalStaffShare, owner)) {
+            return;
+        }
+        for (UUID adminId : admins) {
+            if (!deposit(share, Bukkit.getOfflinePlayer(adminId))) {
+                deposit(share, owner);
+            }
+        }
     }
 
     public static void transferOwner(BlockState state, OfflinePlayer newOwner) {

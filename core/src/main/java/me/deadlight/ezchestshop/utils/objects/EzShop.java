@@ -58,6 +58,13 @@ public class EzShop {
         return shopItem.clone();
     }
 
+    public void setShopItem(ItemStack shopItem) {
+        if (shopItem != null && shopItem.getType() != org.bukkit.Material.AIR) {
+            this.shopItem = shopItem.clone();
+            this.shopItem.setAmount(1);
+        }
+    }
+
     public List<String> getShopViewers() {
         return shopViewers;
     }
