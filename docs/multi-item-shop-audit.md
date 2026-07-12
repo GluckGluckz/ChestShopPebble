@@ -21,3 +21,10 @@ The multi-item and Bedrock-safe storefront was audited before merging to `main`.
 4. Leave an old trade GUI open, change its price, then confirm the new price is charged.
 5. Break and replace a multi-listing shulker shop and confirm all listings remain.
 6. Restart with a double-chest shop and open either half.
+
+## Follow-up verification
+
+- Stale management GUIs revalidate listing or settings permissions before every mutation.
+- Inventory additions and economy deposits now expose failure and trigger rollback.
+- Malformed staff UUID data is ignored safely instead of breaking shop access.
+- Prompt state is cleaned on disconnect and rapid duplicate prompt input cannot leak into public chat.

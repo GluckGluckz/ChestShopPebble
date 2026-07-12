@@ -20,17 +20,20 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChatListener implements Listener {
 
     public static final Map<UUID, ChatWaitObject> chatmap = new ConcurrentHashMap<>();
+    private static final Set<UUID> processingInputs = ConcurrentHashMap.newKeySet();
     public static LanguageManager lm = new LanguageManager();
 
     public static void updateLM(LanguageManager languageManager) {
@@ -43,6 +46,10 @@ public class ChatListener implements Listener {
      * the owner can choose which exact item to edit.
      */
     public static void startPriceEditor(Player player, Block containerBlock) {
+        if (!canManageListings(player, containerBlock)) {
+            player.sendMessage(Utils.colorify("&cYou no longer have permission to edit this shop."));
+            return;
+        }
         List<ShopOffer> offers = ShopItemUtils.getOffers(containerBlock);
         if (offers.isEmpty()) {
             player.sendMessage(Utils.colorify("&eAdd a listing before setting prices."));
@@ -110,15 +117,32 @@ public class ChatListener implements Listener {
     @EventHandler
     public void onAsyncChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        ChatWaitObject waitObject = chatmap.remove(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        ChatWaitObject waitObject = chatmap.remove(playerId);
         if (waitObject == null) {
+            if (processingInputs.contains(playerId)) {
+                event.setCancelled(true);
+            }
             return;
         }
 
         event.setCancelled(true);
+        processingInputs.add(playerId);
         String input = event.getMessage() == null ? "" : event.getMessage().trim();
-        EzChestShop.getScheduler().scheduleSyncDelayedTask(
-                () -> processChatInput(player, waitObject, input), 0);
+        EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
+            try {
+                processChatInput(player, waitObject, input);
+            } finally {
+                processingInputs.remove(playerId);
+            }
+        }, 0);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        chatmap.remove(playerId);
+        processingInputs.remove(playerId);
     }
 
     private void processChatInput(Player player, ChatWaitObject waitObject, String input) {

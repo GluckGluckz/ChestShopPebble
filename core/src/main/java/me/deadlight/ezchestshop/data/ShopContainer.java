@@ -27,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -341,8 +342,21 @@ public class ShopContainer {
             failureSound(player);
             return;
         }
-        addItemStacks(player.getInventory(), template, count);
-        deposit(price, owner);
+        if (!addItemStacks(player.getInventory(), template, count)) {
+            addItemStacks(storage, template, count);
+            deposit(price, buyer);
+            player.sendMessage(lm.fullinv());
+            failureSound(player);
+            return;
+        }
+        if (!deposit(price, owner)) {
+            removeExactItem(player.getInventory(), template, count);
+            addItemStacks(storage, template, count);
+            deposit(price, buyer);
+            player.sendMessage(lm.chestShopProblem());
+            failureSound(player);
+            return;
+        }
         sharedIncomeCheck(data, price);
         transactionMessage(data, owner, buyer, price, true, template, count, containerBlock);
         player.sendMessage(lm.messageSuccBuy(price));
@@ -386,8 +400,21 @@ public class ShopContainer {
             failureSound(player);
             return;
         }
-        addItemStacks(storage, template, count);
-        deposit(price, seller);
+        if (!addItemStacks(storage, template, count)) {
+            addItemStacks(player.getInventory(), template, count);
+            deposit(price, owner);
+            player.sendMessage(lm.chestIsFull());
+            failureSound(player);
+            return;
+        }
+        if (!deposit(price, seller)) {
+            removeExactItem(storage, template, count);
+            addItemStacks(player.getInventory(), template, count);
+            deposit(price, owner);
+            player.sendMessage(lm.chestShopProblem());
+            failureSound(player);
+            return;
+        }
         transactionMessage(data, owner, seller, price, false, template, count, containerBlock);
         player.sendMessage(lm.messageSuccSell(price));
         successSound(player);
@@ -418,7 +445,12 @@ public class ShopContainer {
             failureSound(player);
             return;
         }
-        addItemStacks(player.getInventory(), template, count);
+        if (!addItemStacks(player.getInventory(), template, count)) {
+            deposit(price, buyer);
+            player.sendMessage(lm.fullinv());
+            failureSound(player);
+            return;
+        }
         OfflinePlayer owner = ownerFrom(data);
         transactionMessage(data, owner, buyer, price, true, template, count, containerBlock);
         player.sendMessage(lm.messageSuccBuy(price));
@@ -445,7 +477,12 @@ public class ShopContainer {
             failureSound(player);
             return;
         }
-        deposit(price, seller);
+        if (!deposit(price, seller)) {
+            addItemStacks(player.getInventory(), template, count);
+            player.sendMessage(lm.chestShopProblem());
+            failureSound(player);
+            return;
+        }
         transactionMessage(data, ownerFrom(data), seller, price, false, template, count, containerBlock);
         player.sendMessage(lm.messageSuccSell(price));
         successSound(player);
@@ -461,21 +498,60 @@ public class ShopContainer {
         if (inventory == null || template == null || count <= 0) {
             return false;
         }
-        ItemStack removal = template.clone();
-        removal.setAmount(count);
-        return Utils.removeItem(inventory, removal).isEmpty();
+        int remaining = count;
+        for (int slot = 0; slot < inventory.getSize() && remaining > 0; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || !Utils.isSimilar(stack, template)) {
+                continue;
+            }
+            int take = Math.min(stack.getAmount(), remaining);
+            remaining -= take;
+            if (take == stack.getAmount()) {
+                inventory.setItem(slot, null);
+            } else {
+                stack.setAmount(stack.getAmount() - take);
+                inventory.setItem(slot, stack);
+            }
+        }
+        if (remaining == 0) {
+            return true;
+        }
+        int removed = count - remaining;
+        if (removed > 0) {
+            addItemStacks(inventory, template, removed);
+        }
+        return false;
     }
 
-    private static void addItemStacks(Inventory inventory, ItemStack template, int count) {
+    private static boolean addItemStacks(Inventory inventory, ItemStack template, int count) {
+        if (inventory == null || template == null || count < 0) {
+            return false;
+        }
         int remaining = count;
+        int added = 0;
         int maxStack = Math.max(1, template.getMaxStackSize());
         while (remaining > 0) {
             ItemStack stack = template.clone();
             int amount = Math.min(maxStack, remaining);
             stack.setAmount(amount);
-            inventory.addItem(stack);
+            Map<Integer, ItemStack> leftovers = inventory.addItem(stack);
+            int leftoverAmount = 0;
+            for (ItemStack leftover : leftovers.values()) {
+                if (leftover != null) {
+                    leftoverAmount += leftover.getAmount();
+                }
+            }
+            int inserted = amount - leftoverAmount;
+            added += inserted;
             remaining -= amount;
+            if (leftoverAmount > 0) {
+                if (added > 0) {
+                    removeExactItem(inventory, template, added);
+                }
+                return false;
+            }
         }
+        return true;
     }
 
     private static OfflinePlayer ownerFrom(PersistentDataContainer data) {
@@ -501,17 +577,18 @@ public class ShopContainer {
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE, 0.5f, 0.5f);
     }
 
-    private static void deposit(double price, OfflinePlayer deposit) {
+    private static boolean deposit(double price, OfflinePlayer deposit) {
 
         if (deposit == null || !Double.isFinite(price) || price < 0D) {
-            return;
+            return false;
+        }
+        if (price == 0D) {
+            return true;
         }
         if (Config.useXP) {
-            XPEconomy.depositPlayer(deposit, price);
-        } else {
-            econ.depositPlayer(deposit, price);
+            return XPEconomy.depositPlayer(deposit, price);
         }
-
+        return econ != null && econ.depositPlayer(deposit, price).transactionSuccess();
     }
 
     private static boolean withdraw(double price, OfflinePlayer deposit) {
@@ -537,17 +614,14 @@ public class ShopContainer {
         if (Config.useXP) {
             return XPEconomy.has(player, price);
         } else {
+            if (econ == null) {
+                return false;
+            }
             double balance = econ.getBalance(player);
-            return !(balance < price);
+            return Double.isFinite(balance) && balance >= price;
         }
     }
 
-    private static void getandgive(OfflinePlayer withdraw, double price, OfflinePlayer deposit) {
-
-        withdraw(price, withdraw);
-        deposit(price, deposit);
-
-    }
 
     private static void transactionMessage(PersistentDataContainer data, OfflinePlayer owner, OfflinePlayer customer,
             double price, boolean isBuy, ItemStack item, int count, Block containerBlock) {
@@ -572,7 +646,9 @@ public class ShopContainer {
                     boolean succesful = withdraw(profit * adminsList.size(), Bukkit.getOfflinePlayer(ownerUUID));
                     if (succesful) {
                         for (UUID adminUUID : adminsList) {
-                            deposit(profit, Bukkit.getOfflinePlayer(adminUUID));
+                            if (!deposit(profit, Bukkit.getOfflinePlayer(adminUUID))) {
+                                deposit(profit, Bukkit.getOfflinePlayer(ownerUUID));
+                            }
                         }
                     }
                 }

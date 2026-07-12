@@ -262,6 +262,9 @@ public final class ShopItemUtils {
         if (offer == null) {
             return false;
         }
+        if (!offer.isBuyingEnabled() && offer.getBuyPrice() <= 0D) {
+            return false;
+        }
         offer.setBuyingEnabled(!offer.isBuyingEnabled());
         return saveOffers(containerBlock, offers);
     }
@@ -270,6 +273,9 @@ public final class ShopItemUtils {
         List<ShopOffer> offers = getOffers(containerBlock);
         ShopOffer offer = findById(offers, offerId);
         if (offer == null) {
+            return false;
+        }
+        if (!offer.isSellingEnabled() && offer.getSellPrice() <= 0D) {
             return false;
         }
         offer.setSellingEnabled(!offer.isSellingEnabled());
@@ -568,6 +574,7 @@ public final class ShopItemUtils {
             // Keep the inherited in-memory first-listing prices current for legacy commands.
             EzShop shop = ShopContainer.getShop(containerBlock.getLocation());
             if (shop != null) {
+                shop.setShopItem(item);
                 shop.setBuyPrice(buy);
                 shop.setSellPrice(sell);
             }

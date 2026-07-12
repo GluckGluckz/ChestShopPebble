@@ -261,20 +261,30 @@ public class Utils {
     }
 
     public static List<UUID> getAdminsList(PersistentDataContainer data) {
-
-        String adminsString = data.get(new NamespacedKey(EzChestShop.getPlugin(), "admins"), PersistentDataType.STRING);
-        // UUID@UUID@UUID
-        assert adminsString != null;
-        if (adminsString.equalsIgnoreCase("none")) {
-            return new ArrayList<>();
-        } else {
-            String[] stringUUIDS = adminsString.split("@");
-            List<UUID> finalList = new ArrayList<>();
-            for (String uuidInString : stringUUIDS) {
-                finalList.add(UUID.fromString(uuidInString));
-            }
-            return finalList;
+        List<UUID> admins = new ArrayList<>();
+        if (data == null) {
+            return admins;
         }
+        String adminsString = data.get(new NamespacedKey(EzChestShop.getPlugin(), "admins"),
+                PersistentDataType.STRING);
+        if (adminsString == null || adminsString.trim().isEmpty()
+                || adminsString.equalsIgnoreCase("none")) {
+            return admins;
+        }
+        for (String raw : adminsString.split("@")) {
+            if (raw == null || raw.trim().isEmpty()) {
+                continue;
+            }
+            try {
+                UUID uuid = UUID.fromString(raw.trim());
+                if (!admins.contains(uuid)) {
+                    admins.add(uuid);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Ignore one malformed legacy entry rather than breaking the shop.
+            }
+        }
+        return admins;
     }
 
     public static List<TransactionLogObject> getListOfTransactions(Location containerBlock) {

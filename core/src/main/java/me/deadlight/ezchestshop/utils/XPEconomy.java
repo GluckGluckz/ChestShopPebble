@@ -24,13 +24,18 @@ public class XPEconomy {
         }
     }
 
-    public static void depositPlayer(OfflinePlayer player, double price) {
+    public static boolean depositPlayer(OfflinePlayer player, double price) {
         ImprovedOfflinePlayer iop = ImprovedOfflinePlayer.improvedOfflinePlayer.fromOfflinePlayer(player);
-        if (iop.getLevel() > 200000000) {
-            updatePlayerXp(iop, calculateLevelPointDifference(iop, price));
-        } else {
-            updatePlayerXp(iop, getPlayerXpPoints(iop) + price);
+        if (!iop.hasPlayedBefore() || !Double.isFinite(price) || price < 0D) {
+            return false;
         }
+        if (price == 0D) {
+            return true;
+        }
+        if (iop.getLevel() > 200000000) {
+            return updatePlayerXp(iop, calculateLevelPointDifference(iop, price));
+        }
+        return updatePlayerXp(iop, getPlayerXpPoints(iop) + price);
     }
 
     private static double getPointsFromLevel(int level) {
