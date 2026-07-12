@@ -1,11 +1,15 @@
 package me.deadlight.ezchestshop.listeners;
 
 import me.deadlight.ezchestshop.EzChestShop;
+import me.deadlight.ezchestshop.data.Config;
 import me.deadlight.ezchestshop.data.LanguageManager;
 import me.deadlight.ezchestshop.data.ShopContainer;
+import me.deadlight.ezchestshop.guis.MultiItemShopGUI;
 import me.deadlight.ezchestshop.guis.SettingsGUI;
+import me.deadlight.ezchestshop.utils.ShopItemUtils;
 import me.deadlight.ezchestshop.utils.Utils;
 import me.deadlight.ezchestshop.utils.objects.ChatWaitObject;
+import me.deadlight.ezchestshop.utils.objects.ShopOffer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
@@ -32,9 +36,35 @@ public class ChatListener implements Listener {
         ChatListener.lm = languageManager;
     }
 
+    /**
+     * Compatibility entry point used by the inherited settings menu. A single
+     * listing opens directly; multi-item shops return to the listing manager so
+     * the owner can choose which exact item to edit.
+     */
     public static void startPriceEditor(Player player, Block containerBlock) {
-        chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", containerBlock));
-        sendBuyPricePrompt(player);
+        List<ShopOffer> offers = ShopItemUtils.getOffers(containerBlock);
+        if (offers.isEmpty()) {
+            player.sendMessage(Utils.colorify("&eAdd a listing before setting prices."));
+            new MultiItemShopGUI().showGUI(player, containerBlock);
+            return;
+        }
+        if (offers.size() > 1) {
+            player.sendMessage(Utils.colorify("&eSelect the exact listing whose prices you want to edit."));
+            new MultiItemShopGUI().showGUI(player, containerBlock);
+            return;
+        }
+        startOfferPriceEditor(player, containerBlock, offers.get(0).getId());
+    }
+
+    public static void startOfferPriceEditor(Player player, Block containerBlock, String offerId) {
+        ShopOffer offer = ShopItemUtils.getOffer(containerBlock, offerId);
+        if (offer == null) {
+            player.sendMessage(Utils.colorify("&cThat listing no longer exists."));
+            return;
+        }
+        player.closeInventory();
+        chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "offer-price-buy:" + offerId, containerBlock));
+        sendOfferBuyPricePrompt(player, offer);
     }
 
     private static void sendBuyPricePrompt(Player player) {
@@ -53,10 +83,31 @@ public class ChatListener implements Listener {
         player.sendMessage(Utils.colorify("&8Prompt: &bSell price"));
     }
 
+    private static void sendOfferBuyPricePrompt(Player player, ShopOffer offer) {
+        player.sendMessage("");
+        player.sendMessage(Utils.colorify("&b&lListing Prices &d━━━━━━━━━━━━"));
+        player.sendMessage(Utils.colorify("&7Item: &f" + safeItemName(offer)));
+        player.sendMessage(Utils.colorify("&eStep 1/2 &fType the price customers pay to &aBUY &fone item."));
+        player.sendMessage(Utils.colorify("&7Current: &a$" + offer.getBuyPrice() + " &8• &7Use &f0 &7to disable"));
+        player.sendMessage(Utils.colorify("&7Type &cCANCEL&7 to stop."));
+    }
+
+    private static void sendOfferSellPricePrompt(Player player, ShopOffer offer, double buyPrice) {
+        player.sendMessage("");
+        player.sendMessage(Utils.colorify("&b&lListing Prices &d━━━━━━━━━━━━"));
+        player.sendMessage(Utils.colorify("&7Item: &f" + safeItemName(offer)));
+        player.sendMessage(Utils.colorify("&eStep 2/2 &fType the price customers receive when they &cSELL &fone item."));
+        player.sendMessage(Utils.colorify("&7New buy price: &a$" + buyPrice));
+        player.sendMessage(Utils.colorify("&7Current sell price: &c$" + offer.getSellPrice() + " &8• &7Use &f0 &7to disable"));
+        player.sendMessage(Utils.colorify("&7Type &cCANCEL&7 to stop."));
+    }
+
     @EventHandler
     public void onAsyncChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        if (!chatmap.containsKey(player.getUniqueId())) return;
+        if (!chatmap.containsKey(player.getUniqueId())) {
+            return;
+        }
 
         event.setCancelled(true);
         ChatWaitObject waitObject = chatmap.get(player.getUniqueId());
@@ -66,16 +117,29 @@ public class ChatListener implements Listener {
             return;
         }
 
-        String type = waitObject.type;
-        if (type != null && (type.equalsIgnoreCase("price-buy") || type.equalsIgnoreCase("price-sell"))) {
-            handlePriceInput(event, player, waitObject, type);
+        String type = waitObject.type == null ? "" : waitObject.type;
+        if (type.startsWith("offer-price-buy:") || type.startsWith("offer-price-sell:")) {
+            handleOfferPriceInput(event, player, waitObject, type);
+            return;
+        }
+        if (type.equalsIgnoreCase("price-buy") || type.equalsIgnoreCase("price-sell")) {
+            handleLegacyPriceInput(event, player, waitObject, type);
+            return;
+        }
+
+        String message = event.getMessage() == null ? "" : event.getMessage().trim();
+        if (message.equalsIgnoreCase("cancel") || message.equalsIgnoreCase("[cancel]")) {
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.RED + "Shop staff update cancelled.");
+            EzChestShop.getScheduler().scheduleSyncDelayedTask(
+                    () -> new MultiItemShopGUI().showSettings(player, waitChest), 0);
             return;
         }
 
         String owneruuid = waitObject.dataContainer.get(new NamespacedKey(EzChestShop.getPlugin(), "owner"), PersistentDataType.STRING);
-        if (event.getMessage().equalsIgnoreCase(player.getName())) {
-            OfflinePlayer ofplayer = Bukkit.getOfflinePlayer(UUID.fromString(owneruuid));
-            if (ofplayer.getName().equalsIgnoreCase(player.getName())) {
+        if (message.equalsIgnoreCase(player.getName()) && owneruuid != null) {
+            OfflinePlayer owner = Bukkit.getOfflinePlayer(UUID.fromString(owneruuid));
+            if (owner.getName() != null && owner.getName().equalsIgnoreCase(player.getName())) {
                 chatmap.remove(player.getUniqueId());
                 player.sendMessage(lm.selfAdmin());
                 return;
@@ -83,30 +147,88 @@ public class ChatListener implements Listener {
         }
 
         Block chest = waitObject.containerBlock;
-        chatmap.put(player.getUniqueId(), new ChatWaitObject(event.getMessage(), type, chest, waitObject.dataContainer));
-        SettingsGUI guiInstance = new SettingsGUI();
+        chatmap.put(player.getUniqueId(), new ChatWaitObject(message, type, chest, waitObject.dataContainer));
 
-        if (checkIfPlayerExists(event.getMessage())) {
-            if (type.equalsIgnoreCase("add")) {
-                chatmap.remove(player.getUniqueId());
-                EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-                    addThePlayer(event.getMessage(), chest, player);
-                    guiInstance.showGUI(player, chest, false);
-                }, 0);
-            } else {
-                chatmap.remove(player.getUniqueId());
-                EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
-                    removeThePlayer(event.getMessage(), chest, player);
-                    guiInstance.showGUI(player, chest, false);
-                }, 0);
-            }
+        if (checkIfPlayerExists(message)) {
+            chatmap.remove(player.getUniqueId());
+            EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
+                if (type.equalsIgnoreCase("add")) {
+                    addThePlayer(message, chest, player);
+                } else {
+                    removeThePlayer(message, chest, player);
+                }
+                new MultiItemShopGUI().showSettings(player, chest);
+            }, 0);
         } else {
             player.sendMessage(lm.noPlayer());
             chatmap.remove(player.getUniqueId());
         }
     }
 
-    private void handlePriceInput(AsyncPlayerChatEvent event, Player player, ChatWaitObject waitObject, String type) {
+    private void handleOfferPriceInput(AsyncPlayerChatEvent event, Player player,
+                                       ChatWaitObject waitObject, String type) {
+        String input = event.getMessage() == null ? "" : event.getMessage().trim();
+        String offerId = type.substring(type.indexOf(':') + 1);
+        Block chest = waitObject.containerBlock;
+
+        if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("[cancel]")) {
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.RED + "Listing price update cancelled.");
+            EzChestShop.getScheduler().scheduleSyncDelayedTask(
+                    () -> new MultiItemShopGUI().showOfferEditor(player, chest, offerId), 0);
+            return;
+        }
+
+        Double amount = parsePrice(input);
+        if (amount == null) {
+            player.sendMessage(ChatColor.RED + "Please type a valid non-negative number, or type CANCEL.");
+            return;
+        }
+
+        ShopOffer current = ShopItemUtils.getOffer(chest, offerId);
+        if (current == null) {
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.RED + "That listing no longer exists.");
+            return;
+        }
+
+        if (type.startsWith("offer-price-buy:")) {
+            chatmap.put(player.getUniqueId(),
+                    new ChatWaitObject(String.valueOf(amount), "offer-price-sell:" + offerId, chest, waitObject.dataContainer));
+            sendOfferSellPricePrompt(player, current, amount);
+            return;
+        }
+
+        double buyPrice;
+        try {
+            buyPrice = Double.parseDouble(waitObject.answer);
+        } catch (NumberFormatException exception) {
+            chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "offer-price-buy:" + offerId, chest));
+            player.sendMessage(ChatColor.RED + "The saved buy price was invalid. Starting over.");
+            sendOfferBuyPricePrompt(player, current);
+            return;
+        }
+
+        double sellPrice = amount;
+        if (Config.settings_buy_greater_than_sell && buyPrice != 0D && sellPrice > buyPrice) {
+            player.sendMessage(lm.buyGreaterThanSellRequired());
+            return;
+        }
+
+        EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
+            if (!ShopItemUtils.updateOfferPrices(chest, offerId, buyPrice, sellPrice)) {
+                player.sendMessage(ChatColor.RED + "PebbleShop could not save those listing prices.");
+                return;
+            }
+            chatmap.remove(player.getUniqueId());
+            player.sendMessage(Utils.colorify("&aListing prices updated: &fBuy $" + buyPrice + " &8• &fSell $" + sellPrice));
+            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.25f);
+            new MultiItemShopGUI().showOfferEditor(player, chest, offerId);
+        }, 0);
+    }
+
+    private void handleLegacyPriceInput(AsyncPlayerChatEvent event, Player player,
+                                        ChatWaitObject waitObject, String type) {
         String input = event.getMessage() == null ? "" : event.getMessage().trim();
         if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("[cancel]")) {
             chatmap.remove(player.getUniqueId());
@@ -114,21 +236,9 @@ public class ChatListener implements Listener {
             return;
         }
 
-        if (!Utils.isNumeric(input)) {
-            player.sendMessage(ChatColor.RED + "Please type a valid number, or type CANCEL to stop.");
-            return;
-        }
-
-        double amount;
-        try {
-            amount = Double.parseDouble(input);
-        } catch (NumberFormatException exception) {
-            player.sendMessage(ChatColor.RED + "Please type a valid number, or type CANCEL to stop.");
-            return;
-        }
-
-        if (amount < 0) {
-            player.sendMessage(lm.negativePrice());
+        Double amount = parsePrice(input);
+        if (amount == null) {
+            player.sendMessage(ChatColor.RED + "Please type a valid non-negative number, or type CANCEL.");
             return;
         }
 
@@ -153,45 +263,54 @@ public class ChatListener implements Listener {
         EzChestShop.getScheduler().scheduleSyncDelayedTask(() -> {
             SettingsGUI settingsGUI = new SettingsGUI();
             if (!settingsGUI.changePrices(chest, player, buyPrice, sellPrice)) {
-                chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest, ((TileState) chest.getState()).getPersistentDataContainer()));
+                chatmap.put(player.getUniqueId(), new ChatWaitObject("none", "price-buy", chest,
+                        ((TileState) chest.getState()).getPersistentDataContainer()));
                 player.sendMessage(ChatColor.YELLOW + "Let's try those prices again.");
                 sendBuyPricePrompt(player);
                 return;
             }
-            player.sendMessage(lm.shopBuyPriceUpdated());
-            player.sendMessage(lm.shopSellPriceUpdated());
             chatmap.remove(player.getUniqueId());
-            player.sendMessage(Utils.colorify("&aPebbleShop prices updated. Returning to settings..."));
-            settingsGUI.showGUI(player, chest, false);
+            player.sendMessage(Utils.colorify("&aPebbleShop prices updated."));
+            new MultiItemShopGUI().showGUI(player, chest);
         }, 0);
+    }
+
+    private Double parsePrice(String input) {
+        if (!Utils.isNumeric(input)) {
+            return null;
+        }
+        try {
+            double amount = Double.parseDouble(input);
+            if (amount < 0D || Double.isInfinite(amount) || Double.isNaN(amount)) {
+                return null;
+            }
+            return amount;
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 
     public boolean checkIfPlayerExists(String name) {
         Player player = Bukkit.getPlayer(name);
-        if (player != null) {
-            if (player.isOnline()) {
-                return true;
-            } else {
-                OfflinePlayer thaPlayer = Bukkit.getOfflinePlayer(name);
-                return thaPlayer.hasPlayedBefore();
-            }
-        } else {
-            OfflinePlayer thaPlayer = Bukkit.getOfflinePlayer(name);
-            return thaPlayer.hasPlayedBefore();
+        if (player != null && player.isOnline()) {
+            return true;
         }
+        return Bukkit.getOfflinePlayer(name).hasPlayedBefore();
     }
 
     public void addThePlayer(String answer, Block chest, Player player) {
         UUID answerUUID = Bukkit.getOfflinePlayer(answer).getUniqueId();
-        List<UUID> admins = Utils.getAdminsList(((TileState)chest.getState()).getPersistentDataContainer());
+        List<UUID> admins = Utils.getAdminsList(((TileState) chest.getState()).getPersistentDataContainer());
         if (!admins.contains(answerUUID)) {
             admins.add(answerUUID);
             String adminsString = convertListUUIDtoString(admins);
-            TileState state = ((TileState)chest.getState());
+            TileState state = (TileState) chest.getState();
             PersistentDataContainer data = state.getPersistentDataContainer();
             data.set(new NamespacedKey(EzChestShop.getPlugin(), "admins"), PersistentDataType.STRING, adminsString);
             state.update();
-            ShopContainer.getShopSettings(chest.getLocation()).setAdmins(adminsString);
+            if (ShopContainer.getShopSettings(chest.getLocation()) != null) {
+                ShopContainer.getShopSettings(chest.getLocation()).setAdmins(adminsString);
+            }
             player.sendMessage(lm.sucAdminAdded(answer));
         } else {
             player.sendMessage(lm.alreadyAdmin());
@@ -200,22 +319,17 @@ public class ChatListener implements Listener {
 
     public void removeThePlayer(String answer, Block chest, Player player) {
         UUID answerUUID = Bukkit.getOfflinePlayer(answer).getUniqueId();
-        List<UUID> admins = Utils.getAdminsList(((TileState)chest.getState()).getPersistentDataContainer());
+        List<UUID> admins = Utils.getAdminsList(((TileState) chest.getState()).getPersistentDataContainer());
         if (admins.contains(answerUUID)) {
-            TileState state = ((TileState)chest.getState());
+            TileState state = (TileState) chest.getState();
             admins.remove(answerUUID);
-            if (admins.size() == 0) {
-                PersistentDataContainer data = state.getPersistentDataContainer();
-                data.set(new NamespacedKey(EzChestShop.getPlugin(), "admins"), PersistentDataType.STRING, "none");
-                state.update();
-                player.sendMessage(lm.sucAdminRemoved(answer));
-                return;
-            }
             String adminsString = convertListUUIDtoString(admins);
             PersistentDataContainer data = state.getPersistentDataContainer();
             data.set(new NamespacedKey(EzChestShop.getPlugin(), "admins"), PersistentDataType.STRING, adminsString);
             state.update();
-            ShopContainer.getShopSettings(chest.getLocation()).setAdmins(adminsString);
+            if (ShopContainer.getShopSettings(chest.getLocation()) != null) {
+                ShopContainer.getShopSettings(chest.getLocation()).setAdmins(adminsString);
+            }
             player.sendMessage(lm.sucAdminRemoved(answer));
         } else {
             player.sendMessage(lm.notInAdminList());
@@ -223,22 +337,25 @@ public class ChatListener implements Listener {
     }
 
     public String convertListUUIDtoString(List<UUID> uuidList) {
-        StringBuilder finalString = new StringBuilder();
-        boolean first = false;
-        if (uuidList.size() == 0) {
+        if (uuidList == null || uuidList.isEmpty()) {
             return "none";
         }
+        StringBuilder finalString = new StringBuilder();
         for (UUID uuid : uuidList) {
-            if (first) {
-                finalString.append("@").append(uuid.toString());
-            } else {
-                first = true;
-                finalString = new StringBuilder(uuid.toString());
+            if (finalString.length() > 0) {
+                finalString.append('@');
             }
+            finalString.append(uuid.toString());
         }
-        if (finalString.toString().equalsIgnoreCase("")) {
-            finalString = new StringBuilder("none");
+        return finalString.length() == 0 ? "none" : finalString.toString();
+    }
+
+    private static String safeItemName(ShopOffer offer) {
+        try {
+            String name = ChatColor.stripColor(Utils.getFinalItemName(offer.getItem()));
+            return name == null || name.trim().isEmpty() ? offer.getItem().getType().name() : name;
+        } catch (Throwable ignored) {
+            return offer.getItem().getType().name();
         }
-        return finalString.toString();
     }
 }
