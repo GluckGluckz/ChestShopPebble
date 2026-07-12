@@ -33,15 +33,15 @@ jobs:
           status=$?
           cat /tmp/audit-followup.log
           if [ "$status" -ne 0 ]; then
-            mkdir -p docs
-            cp /tmp/audit-followup.log docs/audit-followup-error.log
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/audit-followup-error.log
-            git commit -m "Record audit follow-up failure"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
             exit "$status"
           fi
+      - name: Upload audit diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-followup-error
+          path: /tmp/audit-followup.log
+          if-no-files-found: error
       - name: Build PebbleShop
         run: mvn --batch-mode --no-transfer-progress clean package
       - name: Commit and push generated fixes
