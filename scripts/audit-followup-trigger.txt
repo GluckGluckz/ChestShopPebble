@@ -1,1 +1,0 @@
-Apply the final audit follow-up and Java 21 build validation.
