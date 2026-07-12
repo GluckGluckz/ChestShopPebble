@@ -1,0 +1,39 @@
+name: Apply Final Multi-item Polish
+
+on:
+  pull_request:
+    branches:
+      - agent/multi-item-chest-shops
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-and-push:
+    if: github.head_ref == 'agent/audit-polish-pr' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Apply final polish
+        run: python3 scripts/apply_final_polish.py
+      - name: Build PebbleShop
+        run: mvn --batch-mode --no-transfer-progress clean package
+      - name: Commit and push final polish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add core/src/main/java docs
+          git commit -m "Finalize audited multi-item shop polish"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
