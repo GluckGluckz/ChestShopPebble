@@ -80,7 +80,7 @@ public class MultiItemShopGUI {
             gui.addItem(new GuiItem(empty, event -> event.setCancelled(true)));
         } else {
             for (ShopOffer offer : offers) {
-                gui.addItem(createListingItem(gui, player, containerBlock, data, owner, offer, canManage, adminShop));
+                gui.addItem(createListingItem(player, containerBlock, data, owner, offer, canManage, adminShop));
             }
         }
 
@@ -88,7 +88,7 @@ public class MultiItemShopGUI {
         addInformation(gui, offers.size(), ShopItemUtils.getOfferCapacity(containerBlock), canManage);
 
         if (canManage) {
-            addManagementControls(gui, player, containerBlock, data);
+            addManagementControls(gui, player, containerBlock);
         } else if (player.hasPermission("ecs.admin.view")) {
             addStorageButton(gui, player, containerBlock, 6, 8);
         }
@@ -314,7 +314,7 @@ public class MultiItemShopGUI {
         gui.open(player);
     }
 
-    private GuiItem createListingItem(PaginatedGui gui, Player player, Block containerBlock,
+    private GuiItem createListingItem(Player player, Block containerBlock,
                                       PersistentDataContainer data, OfflinePlayer owner, ShopOffer offer,
                                       boolean canManage, boolean adminShop) {
         ItemStack display = listingDisplay(containerBlock, data, offer, canManage);
@@ -425,8 +425,7 @@ public class MultiItemShopGUI {
         return display;
     }
 
-    private void addManagementControls(PaginatedGui gui, Player player, Block containerBlock,
-                                       PersistentDataContainer data) {
+    private void addManagementControls(PaginatedGui gui, Player player, Block containerBlock) {
         ItemStack settings = namedItem(Material.COMPARATOR, "&b&lShop Settings",
                 Arrays.asList(
                         "&7Global buy/sell switches, alerts,",
@@ -634,8 +633,9 @@ public class MultiItemShopGUI {
         }
     }
 
-    private ItemStack filler() {
-        return namedItem(Material.BLACK_STAINED_GLASS_PANE, "&8", new ArrayList<>());
+    private GuiItem filler() {
+        return new GuiItem(namedItem(Material.BLACK_STAINED_GLASS_PANE, "&8", new ArrayList<>()),
+                event -> event.setCancelled(true));
     }
 
     private ItemStack toggleItem(Material material, String name, String lineOne, String lineTwo) {
