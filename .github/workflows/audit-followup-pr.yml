@@ -28,6 +28,52 @@ jobs:
           cache: maven
       - name: Apply audit follow-up
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply_audit_followup.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('for key in ("dbuy", "dsell", "msgtoggle", "shareincome"):',
+                        'for key in ("dbuy", "dsell", "msgtoggle"):')
+          needle = '''        gui.setItem(2, 8, new GuiItem(toggleItem(
+                  shareIncome ? Material.LIME_DYE : Material.GRAY_DYE,
+                  shareIncome ? "&a&lShared Income On" : "&7&lShared Income Off",
+                  "&7Splits eligible income with shop staff.", "&eTap to toggle."), event -> {
+              event.setCancelled(true);
+              if (adminShop) {'''
+          replacement = '''        gui.setItem(2, 8, new GuiItem(toggleItem(
+                  shareIncome ? Material.LIME_DYE : Material.GRAY_DYE,
+                  shareIncome ? "&a&lShared Income On" : "&7&lShared Income Off",
+                  "&7Splits eligible income with shop staff.", "&eTap to toggle."), event -> {
+              event.setCancelled(true);
+              if (!requireSettingsAccess(player, containerBlock)) {
+                  return;
+              }
+              if (adminShop) {'''
+          insertion = '''text = once(text,
+              "        gui.setItem(2, 8, new GuiItem(toggleItem(\\n"
+              "                shareIncome ? Material.LIME_DYE : Material.GRAY_DYE,\\n"
+              "                shareIncome ? \\\"&a&lShared Income On\\\" : \\\"&7&lShared Income Off\\\",\\n"
+              "                \\\"&7Splits eligible income with shop staff.\\\", \\\"&eTap to toggle.\\\"), event -> {\\n"
+              "            event.setCancelled(true);\\n"
+              "            if (adminShop) {",
+              "        gui.setItem(2, 8, new GuiItem(toggleItem(\\n"
+              "                shareIncome ? Material.LIME_DYE : Material.GRAY_DYE,\\n"
+              "                shareIncome ? \\\"&a&lShared Income On\\\" : \\\"&7&lShared Income Off\\\",\\n"
+              "                \\\"&7Splits eligible income with shop staff.\\\", \\\"&eTap to toggle.\\\"), event -> {\\n"
+              "            event.setCancelled(true);\\n"
+              "            if (!requireSettingsAccess(player, containerBlock)) {\\n"
+              "                return;\\n"
+              "            }\\n"
+              "            if (adminShop) {",
+              "settings permission recheck shareincome")
+          '''
+          marker = 'text = once(text,\n    "        gui.setItem(6, 7, new GuiItem(add, event -> {\\n"'
+          if insertion not in s:
+              if marker not in s:
+                  raise SystemExit('Could not locate follow-up insertion marker')
+              s = s.replace(marker, insertion + marker, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
           set +e
           python3 scripts/apply_audit_followup.py > /tmp/audit-followup.log 2>&1
           status=$?
