@@ -221,10 +221,8 @@ public final class ShopItemUtils {
         }
         target.setBuyPrice(buyPrice);
         target.setSellPrice(sellPrice);
-        if (Config.settings_zero_equals_disabled) {
-            target.setBuyingEnabled(buyPrice > 0D);
-            target.setSellingEnabled(sellPrice > 0D);
-        }
+        target.setBuyingEnabled(buyPrice > 0D);
+        target.setSellingEnabled(sellPrice > 0D);
 
         if (!saveOffers(containerBlock, offers)) {
             return false;
