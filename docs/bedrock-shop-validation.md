@@ -13,3 +13,5 @@ PebbleShop's multi-item interface is designed around normal click/tap actions on
 - Add and replace listings while holding the template item in the main hand.
 - Confirm prices, toggles, stock, double-chest capacity, and restart persistence.
 - Repeat the trade flow on an admin shop.
+
+The nested validation pull request compiles the complete feature branch before the main multi-item pull request is merged.
