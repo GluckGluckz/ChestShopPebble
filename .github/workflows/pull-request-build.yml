@@ -2,11 +2,9 @@ name: Pull Request Build
 
 on:
   pull_request:
-    branches:
-      - main
-      - agent/multi-item-chest-shops
+    branches: [main]
   push:
-    branches: [agent/multi-item-chest-shops]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
